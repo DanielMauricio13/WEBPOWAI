@@ -325,6 +325,36 @@ a {
   grid-column: 1 / -1;
 }
 
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #151a22;
+}
+
+.admin-tabs button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 14px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 900;
+}
+
+.admin-tabs button.active,
+.admin-tabs button:hover {
+  color: var(--text);
+  background: #253040;
+  border-color: var(--line);
+}
+
 .admin-panel-heading .panel-header {
   margin-bottom: 0;
 }
@@ -381,6 +411,117 @@ a {
   width: 18px;
   height: 18px;
   accent-color: var(--green);
+}
+
+.code-editor {
+  min-height: 320px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.admin-detail-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-profile-hero {
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #1a2029;
+}
+
+.admin-profile-hero strong {
+  display: block;
+  font-size: 22px;
+}
+
+.admin-profile-hero span,
+.info-item span {
+  color: var(--soft);
+}
+
+.admin-profile-hero b {
+  color: var(--green);
+}
+
+.admin-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.info-item {
+  min-height: 70px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #10151c;
+}
+
+.plan-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.plan-editor h4 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.plan-editor p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.plan-day-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111820;
+}
+
+.plan-day-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: end;
+  gap: 10px;
+}
+
+.plan-exercise-list {
+  display: grid;
+  gap: 10px;
+}
+
+.plan-exercise-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: #0d131a;
+}
+
+.info-item span {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.info-item strong {
+  overflow-wrap: anywhere;
 }
 
 .workout-row span,

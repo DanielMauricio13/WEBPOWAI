@@ -17,6 +17,7 @@ import {
   Menu,
   MessageSquare,
   Moon,
+  Plus,
   RefreshCcw,
   Scale,
   ShieldCheck,
@@ -763,6 +764,15 @@ function AuthenticatedApp({
 function AdminPage({ data, onRefresh, token }) {
   const [deleteStatus, setDeleteStatus] = useState('')
   const [deletingKey, setDeletingKey] = useState('')
+  const [adminTab, setAdminTab] = useState('overview')
+  const [selectedUserID, setSelectedUserID] = useState('')
+  const [userDetail, setUserDetail] = useState(null)
+  const [workoutJson, setWorkoutJson] = useState('')
+  const [routineJson, setRoutineJson] = useState('')
+  const [imageRows, setImageRows] = useState([])
+  const [imageTotal, setImageTotal] = useState(0)
+  const [imageHasMore, setImageHasMore] = useState(false)
+  const [imageLoading, setImageLoading] = useState(false)
   const [imageForm, setImageForm] = useState({ exerciseName: '', muscleCategory: '' })
   const [exerciseForm, setExerciseForm] = useState({
     exerciseName: '',
@@ -774,6 +784,25 @@ function AdminPage({ data, onRefresh, token }) {
     generateImage: true,
   })
 
+  const metrics = data?.metrics || {}
+  const users = Array.isArray(data?.users) ? data.users : []
+  const tickets = Array.isArray(data?.supportTickets) ? data.supportTickets : []
+  const crashes = Array.isArray(data?.crashReports) ? data.crashReports : []
+  const emails = Array.isArray(data?.emailLogs) ? data.emailLogs : []
+  const exercises = Array.isArray(data?.exercises) ? data.exercises : []
+  const selectedUser = userDetail?.user || null
+  const selectedWorkoutPlan = parseTrainingJSON(workoutJson)
+  const selectedRoutinePlan = parseTrainingJSON(routineJson)
+  const selectedWorkoutDays = selectedWorkoutPlan.workout_plan || []
+  const selectedRoutineDays = selectedRoutinePlan.workout_plan || []
+
+  useEffect(() => {
+    if (data && adminTab === 'exercises' && !imageRows.length && !imageLoading) {
+      loadImagePage(0, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminTab])
+
   if (!data) {
     return (
       <section className="loading-panel">
@@ -784,13 +813,183 @@ function AdminPage({ data, onRefresh, token }) {
     )
   }
 
-  const metrics = data.metrics || {}
-  const users = Array.isArray(data.users) ? data.users : []
-  const tickets = Array.isArray(data.supportTickets) ? data.supportTickets : []
-  const crashes = Array.isArray(data.crashReports) ? data.crashReports : []
-  const emails = Array.isArray(data.emailLogs) ? data.emailLogs : []
-  const images = Array.isArray(data.exerciseImages) ? data.exerciseImages : []
-  const exercises = Array.isArray(data.exercises) ? data.exercises : []
+  async function loadImagePage(offset = 0, replace = false) {
+    setImageLoading(true)
+    setDeleteStatus('')
+    try {
+      const page = await api(`admin/exercise-images?limit=10&offset=${offset}`, { token })
+      const nextItems = Array.isArray(page?.items) ? page.items : []
+      setImageRows((current) => (replace ? nextItems : [...current, ...nextItems]))
+      setImageTotal(page?.total ?? nextItems.length)
+      setImageHasMore(Boolean(page?.hasMore))
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not load exercise images.')
+    } finally {
+      setImageLoading(false)
+    }
+  }
+
+  async function loadUserDetail(userID) {
+    if (!userID) return
+    setSelectedUserID(userID)
+    setDeletingKey(`user-load-${userID}`)
+    setDeleteStatus('')
+    try {
+      const detail = await api(`admin/users/${userID}`, { token })
+      setUserDetail(detail)
+      setWorkoutJson(JSON.stringify(detail?.training?.userExcersises || { workout_plan: [] }, null, 2))
+      setRoutineJson(detail?.routine?.routineTraining ? JSON.stringify(detail.routine.routineTraining, null, 2) : '')
+      setAdminTab('users')
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not load user details.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  async function saveUserWorkout() {
+    if (!selectedUserID) return
+    setDeletingKey('user-workout-save')
+    setDeleteStatus('')
+    try {
+      const parsed = JSON.parse(workoutJson)
+      const training = await api(`admin/users/${selectedUserID}/workout`, {
+        method: 'PUT',
+        token,
+        body: { userExcersises: parsed },
+        timeout: 90000,
+      })
+      setWorkoutJson(JSON.stringify(training?.userExcersises || parsed, null, 2))
+      setDeleteStatus('User workout saved.')
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not save user workout.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  async function saveUserRoutine() {
+    if (!selectedUserID) return
+    setDeletingKey('user-routine-save')
+    setDeleteStatus('')
+    try {
+      const parsed = JSON.parse(routineJson)
+      const routine = await api(`admin/users/${selectedUserID}/routine`, {
+        method: 'PUT',
+        token,
+        body: { routineTraining: parsed },
+      })
+      setRoutineJson(JSON.stringify(routine?.routineTraining || parsed, null, 2))
+      setDeleteStatus('User routine saved.')
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not save user routine.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  function editTrainingPlan(kind, mutator) {
+    const currentJson = kind === 'routine' ? routineJson : workoutJson
+    const setter = kind === 'routine' ? setRoutineJson : setWorkoutJson
+    const emptyPlan = { workout_plan: [] }
+
+    try {
+      const parsed = currentJson ? JSON.parse(currentJson) : emptyPlan
+      const next = JSON.parse(JSON.stringify({
+        ...emptyPlan,
+        ...parsed,
+        workout_plan: Array.isArray(parsed.workout_plan) ? parsed.workout_plan : [],
+      }))
+      mutator(next.workout_plan)
+      setter(JSON.stringify(next, null, 2))
+      setDeleteStatus(`Unsaved ${kind} changes.`)
+    } catch {
+      setDeleteStatus(`Fix the ${kind} JSON before using visual edits.`)
+    }
+  }
+
+  function addTrainingDay(kind) {
+    editTrainingPlan(kind, (days) => {
+      const nextDay = days.reduce((max, day) => Math.max(max, Number(day.day) || 0), 0) + 1
+      days.push({ day: nextDay, muscle_group: 'New day', exercises: [] })
+    })
+  }
+
+  function deleteTrainingDay(kind, dayIndex) {
+    if (!window.confirm('Delete this day?')) return
+    editTrainingPlan(kind, (days) => {
+      days.splice(dayIndex, 1)
+    })
+  }
+
+  function updateTrainingDay(kind, dayIndex, key, value) {
+    editTrainingPlan(kind, (days) => {
+      days[dayIndex] = { ...days[dayIndex], [key]: key === 'day' ? Number(value) : value }
+    })
+  }
+
+  function addTrainingExercise(kind, dayIndex) {
+    editTrainingPlan(kind, (days) => {
+      const exercisesForDay = Array.isArray(days[dayIndex]?.exercises) ? days[dayIndex].exercises : []
+      const exercise = {
+        name: 'New exercise',
+        reps: '8-12',
+        sets: 3,
+        calories_burned: 50,
+        loggedSets: [],
+      }
+      if (kind === 'routine') {
+        exercise.weight = 0
+        exercise.unit = 'lb'
+      }
+      days[dayIndex].exercises = [...exercisesForDay, exercise]
+    })
+  }
+
+  function deleteTrainingExercise(kind, dayIndex, exerciseIndex) {
+    if (!window.confirm('Delete this exercise?')) return
+    editTrainingPlan(kind, (days) => {
+      const exercisesForDay = Array.isArray(days[dayIndex]?.exercises) ? days[dayIndex].exercises : []
+      exercisesForDay.splice(exerciseIndex, 1)
+      days[dayIndex].exercises = exercisesForDay
+    })
+  }
+
+  function updateTrainingExercise(kind, dayIndex, exerciseIndex, key, value) {
+    editTrainingPlan(kind, (days) => {
+      const exercisesForDay = Array.isArray(days[dayIndex]?.exercises) ? days[dayIndex].exercises : []
+      const numericKeys = new Set(['sets', 'calories_burned', 'weight'])
+      exercisesForDay[exerciseIndex] = {
+        ...exercisesForDay[exerciseIndex],
+        [key]: numericKeys.has(key) ? Number(value) : value,
+      }
+      days[dayIndex].exercises = exercisesForDay
+    })
+  }
+
+  async function deleteSelectedUser() {
+    if (!selectedUserID || !userDetail?.user) return
+    const email = userDetail.user.email || 'this user'
+    if (!window.confirm(`Delete ${email} and all account data? This cannot be undone.`)) return
+
+    setDeletingKey('user-delete')
+    setDeleteStatus('')
+    try {
+      await api(`admin/users/${selectedUserID}`, { method: 'DELETE', token })
+      setSelectedUserID('')
+      setUserDetail(null)
+      setWorkoutJson('')
+      setRoutineJson('')
+      setDeleteStatus('User account deleted.')
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not delete user account.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
 
   async function deleteAdminRecord(type, id) {
     if (!id) return
@@ -840,6 +1039,7 @@ function AdminPage({ data, onRefresh, token }) {
     try {
       await api(`admin/exercise-images/${id}`, { method: 'DELETE', token })
       setDeleteStatus('Exercise image deleted.')
+      await loadImagePage(0, true)
       await onRefresh()
     } catch (error) {
       setDeleteStatus(error.message || 'Could not delete exercise image.')
@@ -863,6 +1063,8 @@ function AdminPage({ data, onRefresh, token }) {
         timeout: 90000,
       })
       setDeleteStatus('Exercise image regenerated.')
+      setImageForm({ exerciseName: '', muscleCategory: '' })
+      await loadImagePage(0, true)
       await onRefresh()
     } catch (error) {
       setDeleteStatus(error.message || 'Could not regenerate exercise image.')
@@ -895,6 +1097,7 @@ function AdminPage({ data, onRefresh, token }) {
         generateImage: true,
       })
       setDeleteStatus('Custom exercise created.')
+      if (exerciseForm.generateImage) await loadImagePage(0, true)
       await onRefresh()
     } catch (error) {
       setDeleteStatus(error.message || 'Could not create custom exercise.')
@@ -922,15 +1125,32 @@ function AdminPage({ data, onRefresh, token }) {
       <StatCard icon={LifeBuoy} label="Tickets" value={metrics.supportTickets ?? tickets.length} detail="Support tickets received" />
       <StatCard icon={Activity} label="Crash reports" value={metrics.crashReports ?? crashes.length} detail="Runtime and client reports" />
       <StatCard icon={Mail} label="Emails sent" value={metrics.emails ?? emails.length} detail="Logged outbound emails" />
-      <StatCard icon={Image} label="Exercise images" value={metrics.exerciseImages ?? images.length} detail="Generated training images" />
+      <StatCard icon={Image} label="Exercise images" value={metrics.exerciseImages ?? imageTotal} detail="Generated training images" />
       <StatCard icon={Dumbbell} label="Exercises" value={metrics.exercises ?? exercises.length} detail="Exercise library entries" />
 
       {deleteStatus ? (
-        <section className={`admin-status form-status ${deleteStatus.includes('deleted') || deleteStatus.includes('created') || deleteStatus.includes('regenerated') ? 'success' : 'error'}`}>
+        <section className={`admin-status form-status ${deleteStatus.includes('deleted') || deleteStatus.includes('created') || deleteStatus.includes('regenerated') || deleteStatus.includes('saved') || deleteStatus.includes('Unsaved') ? 'success' : 'error'}`}>
           {deleteStatus}
         </section>
       ) : null}
 
+      <section className="admin-tabs wide-panel" aria-label="Admin sections">
+        <button className={adminTab === 'overview' ? 'active' : ''} onClick={() => setAdminTab('overview')} type="button">
+          <BarChart3 size={17} />
+          Overview
+        </button>
+        <button className={adminTab === 'users' ? 'active' : ''} onClick={() => setAdminTab('users')} type="button">
+          <Users size={17} />
+          Users
+        </button>
+        <button className={adminTab === 'exercises' ? 'active' : ''} onClick={() => setAdminTab('exercises')} type="button">
+          <Dumbbell size={17} />
+          Exercises
+        </button>
+      </section>
+
+      {adminTab === 'overview' ? (
+        <>
       <section className="data-panel">
         <PanelHeader icon={Users} title="Users" subtitle={`${users.length} accounts`} />
         <Rows
@@ -1006,9 +1226,211 @@ function AdminPage({ data, onRefresh, token }) {
           }))}
         />
       </section>
+        </>
+      ) : null}
 
+      {adminTab === 'users' ? (
+        <>
+          <section className="data-panel">
+            <PanelHeader icon={Users} title="Manage users" subtitle={`${users.length} accounts`} />
+            <div className="rows">
+              {users.map((entry) => (
+                <div className="history-row admin-row" key={entry.id || entry.email}>
+                  <div>
+                    <strong>{entry.email || 'No email'}</strong>
+                    <small>{entry.firstName || 'PowAI'} {entry.lastName || 'user'} · {entry.membershipStatus || 'unknown'}</small>
+                  </div>
+                  <b>{entry.isAdmin ? 'Admin' : entry.membershipPlan || 'User'}</b>
+                  <button
+                    className="secondary-action"
+                    disabled={!entry.id || deletingKey === `user-load-${entry.id}`}
+                    onClick={() => loadUserDetail(entry.id)}
+                    type="button"
+                  >
+                    {deletingKey === `user-load-${entry.id}` ? <Loader2 className="spin" size={17} /> : <Users size={17} />}
+                    Manage
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="data-panel">
+            <PanelHeader icon={ShieldCheck} title="User profile" subtitle={selectedUser?.email || 'Select a user'} />
+            {selectedUser ? (
+              <div className="admin-detail-stack">
+                <div className="admin-profile-hero">
+                  <div>
+                    <strong>{selectedUser.firstName || 'PowAI'} {selectedUser.lastName || 'user'}</strong>
+                    <span>{selectedUser.email || 'No email'}</span>
+                  </div>
+                  <b>{selectedUser.isAdmin ? 'Admin' : selectedUser.membershipStatus || 'User'}</b>
+                </div>
+                <div className="admin-info-grid">
+                  <InfoItem label="Goal" value={selectedUser.goal} />
+                  <InfoItem label="Gender" value={selectedUser.gender} />
+                  <InfoItem label="Age" value={selectedUser.age} />
+                  <InfoItem label="Weight" value={selectedUser.weight} />
+                  <InfoItem label="Body type" value={selectedUser.bodyStructure} />
+                  <InfoItem label="Height" value={formatHeight(selectedUser)} />
+                  <InfoItem label="Days/week" value={selectedUser.numDays} />
+                  <InfoItem label="Hours/session" value={selectedUser.numHours} />
+                </div>
+                <div className="admin-info-grid">
+                  <InfoItem label="Calories" value={selectedUser.dailyCalories} />
+                  <InfoItem label="Protein" value={selectedUser.dailyProtein ? `${selectedUser.dailyProtein}g` : ''} />
+                  <InfoItem label="Carbs" value={selectedUser.carbs ? `${selectedUser.carbs}g` : ''} />
+                  <InfoItem label="Sugars" value={selectedUser.sugars ? `${selectedUser.sugars}g` : ''} />
+                  <InfoItem label="Burn target" value={selectedUser.burnCalories} />
+                  <InfoItem label="Water" value={selectedUser.water ? `${selectedUser.water}L` : ''} />
+                </div>
+                <div className="admin-info-grid">
+                  <InfoItem label="Plan" value={selectedUser.membershipPlan} />
+                  <InfoItem label="Platform" value={selectedUser.membershipPlatform} />
+                  <InfoItem label="Started" value={formatDate(selectedUser.membershipStartedAt)} />
+                  <InfoItem label="Expires" value={formatDate(selectedUser.membershipExpiresAt)} />
+                  <InfoItem label="APNS" value={selectedUser.hasAPNSToken ? 'Registered' : 'Missing'} />
+                  <InfoItem label="APNS env" value={selectedUser.apnsEnvironment} />
+                </div>
+                <div className="admin-info-grid">
+                  <InfoItem label="Apple product" value={selectedUser.appleProductID} />
+                  <InfoItem label="Original transaction" value={selectedUser.appleOriginalTransactionID} />
+                  <InfoItem label="Latest transaction" value={selectedUser.appleLatestTransactionID} />
+                  <InfoItem label="Token updated" value={formatDate(selectedUser.apnsTokenUpdatedAt)} />
+                </div>
+              </div>
+            ) : (
+              <p className="empty-state">Select a user to see profile, membership, nutrition, and device data.</p>
+            )}
+          </section>
+
+          <section className="data-panel">
+            <PanelHeader icon={BarChart3} title="Training summary" subtitle={selectedUser?.email || 'Select a user'} />
+            {selectedUser ? (
+              <div className="admin-info-grid">
+                <InfoItem label="Workout days" value={selectedWorkoutDays.length} />
+                <InfoItem label="Workout exercises" value={selectedWorkoutDays.reduce((sum, day) => sum + (Array.isArray(day.exercises) ? day.exercises.length : 0), 0)} />
+                <InfoItem label="Routine days" value={selectedRoutineDays.length} />
+                <InfoItem label="Routine exercises" value={selectedRoutineDays.reduce((sum, day) => sum + (Array.isArray(day.exercises) ? day.exercises.length : 0), 0)} />
+              </div>
+            ) : (
+              <p className="empty-state">Select a user to see workout and routine totals.</p>
+            )}
+          </section>
+
+          <section className="data-panel">
+            <PanelHeader
+              icon={Dumbbell}
+              title="Workout control"
+              subtitle={userDetail?.user?.email || 'Select a user'}
+            />
+            {userDetail ? (
+              <div className="form-stack">
+                <TrainingPlanEditor
+                  days={selectedWorkoutDays}
+                  kind="workout"
+                  onAddDay={() => addTrainingDay('workout')}
+                  onAddExercise={(dayIndex) => addTrainingExercise('workout', dayIndex)}
+                  onDeleteDay={(dayIndex) => deleteTrainingDay('workout', dayIndex)}
+                  onDeleteExercise={(dayIndex, exerciseIndex) => deleteTrainingExercise('workout', dayIndex, exerciseIndex)}
+                  onUpdateDay={(dayIndex, key, value) => updateTrainingDay('workout', dayIndex, key, value)}
+                  onUpdateExercise={(dayIndex, exerciseIndex, key, value) => updateTrainingExercise('workout', dayIndex, exerciseIndex, key, value)}
+                />
+                <label className="field">
+                  <span>Generated workout JSON</span>
+                  <textarea className="code-editor" value={workoutJson} onChange={(event) => setWorkoutJson(event.target.value)} rows="14" />
+                </label>
+                <button className="primary-action wide" disabled={deletingKey === 'user-workout-save'} onClick={saveUserWorkout} type="button">
+                  {deletingKey === 'user-workout-save' ? <Loader2 className="spin" size={17} /> : <Dumbbell size={17} />}
+                  Save workout
+                </button>
+              </div>
+            ) : (
+              <p className="empty-state">Select a user to view and edit their workout.</p>
+            )}
+          </section>
+
+          <section className="data-panel">
+            <PanelHeader
+              icon={TimerReset}
+              title="Routine control"
+              subtitle={userDetail?.routine ? 'Saved routine' : 'No routine loaded'}
+            />
+            {userDetail ? (
+              <div className="form-stack">
+                {routineJson ? (
+                  <>
+                    <TrainingPlanEditor
+                      days={selectedRoutineDays}
+                      kind="routine"
+                      onAddDay={() => addTrainingDay('routine')}
+                      onAddExercise={(dayIndex) => addTrainingExercise('routine', dayIndex)}
+                      onDeleteDay={(dayIndex) => deleteTrainingDay('routine', dayIndex)}
+                      onDeleteExercise={(dayIndex, exerciseIndex) => deleteTrainingExercise('routine', dayIndex, exerciseIndex)}
+                      onUpdateDay={(dayIndex, key, value) => updateTrainingDay('routine', dayIndex, key, value)}
+                      onUpdateExercise={(dayIndex, exerciseIndex, key, value) => updateTrainingExercise('routine', dayIndex, exerciseIndex, key, value)}
+                    />
+                    <label className="field">
+                      <span>Routine JSON</span>
+                      <textarea className="code-editor" value={routineJson} onChange={(event) => setRoutineJson(event.target.value)} rows="14" />
+                    </label>
+                    <button className="secondary-action wide" disabled={deletingKey === 'user-routine-save'} onClick={saveUserRoutine} type="button">
+                      {deletingKey === 'user-routine-save' ? <Loader2 className="spin" size={17} /> : <TimerReset size={17} />}
+                      Save routine
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="empty-state">No routine record was returned for this user.</p>
+                    <button
+                      className="secondary-action wide"
+                      onClick={() => {
+                        setRoutineJson(JSON.stringify({ workout_plan: [] }, null, 2))
+                        setDeleteStatus('Unsaved routine changes.')
+                      }}
+                      type="button"
+                    >
+                      <Plus size={17} />
+                      Create empty routine
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p className="empty-state">Select a user to view and edit their routine.</p>
+            )}
+          </section>
+
+          <section className="data-panel">
+            <PanelHeader icon={Trash2} title="Account control" subtitle={userDetail?.user?.email || 'Select a user'} />
+            {userDetail ? (
+              <div className="form-stack">
+                <Rows
+                  empty="No user loaded."
+                  rows={[
+                    {
+                      title: userDetail.user.email || 'No email',
+                      meta: `${userDetail.user.firstName || 'PowAI'} ${userDetail.user.lastName || 'user'} · ${userDetail.user.membershipStatus || 'unknown'}`,
+                      value: userDetail.user.isAdmin ? 'Admin' : 'User',
+                    },
+                  ]}
+                />
+                <button className="secondary-action danger-action wide" disabled={userDetail.user.isAdmin || deletingKey === 'user-delete'} onClick={deleteSelectedUser} type="button">
+                  {deletingKey === 'user-delete' ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
+                  Delete user account
+                </button>
+              </div>
+            ) : (
+              <p className="empty-state">Select a user before deleting an account.</p>
+            )}
+          </section>
+        </>
+      ) : null}
+
+      {adminTab === 'exercises' ? (
+        <>
       <section className="data-panel">
-        <PanelHeader icon={Image} title="Exercise images" subtitle={`${images.length} saved`} />
+        <PanelHeader icon={Image} title="Exercise images" subtitle={`${imageRows.length} of ${imageTotal || metrics.exerciseImages || 0} loaded`} />
         <form className="form-stack admin-tool-form" onSubmit={regenerateExerciseImage}>
           <div className="form-grid two">
             <label className="field">
@@ -1038,7 +1460,7 @@ function AdminPage({ data, onRefresh, token }) {
         </datalist>
         <ImageRows
           empty="No exercise images returned yet."
-          rows={images.slice(0, 12).map((entry) => ({
+          rows={imageRows.map((entry) => ({
             id: entry.id,
             title: entry.filename,
             meta: `${Math.round((entry.byteSize || 0) / 1024)} KB`,
@@ -1047,6 +1469,12 @@ function AdminPage({ data, onRefresh, token }) {
             onDelete: () => deleteExerciseImage(entry.id),
           }))}
         />
+        {imageHasMore ? (
+          <button className="secondary-action wide admin-load-more" disabled={imageLoading} onClick={() => loadImagePage(imageRows.length)} type="button">
+            {imageLoading ? <Loader2 className="spin" size={17} /> : <RefreshCcw size={17} />}
+            Load 10 more
+          </button>
+        ) : null}
       </section>
 
       <section className="data-panel">
@@ -1111,6 +1539,8 @@ function AdminPage({ data, onRefresh, token }) {
           </button>
         </form>
       </section>
+        </>
+      ) : null}
     </div>
   )
 }
@@ -1138,6 +1568,154 @@ function AdminRows({ empty, rows }) {
           </button>
         </div>
       ))}
+    </div>
+  )
+}
+
+function InfoItem({ label, value }) {
+  const display = value === undefined || value === null || value === '' ? '--' : value
+  return (
+    <div className="info-item">
+      <span>{label}</span>
+      <strong>{display}</strong>
+    </div>
+  )
+}
+
+function TrainingPlanEditor({
+  days,
+  kind,
+  onAddDay,
+  onAddExercise,
+  onDeleteDay,
+  onDeleteExercise,
+  onUpdateDay,
+  onUpdateExercise,
+}) {
+  const planDays = Array.isArray(days) ? days : []
+  return (
+    <div className="plan-editor">
+      <div className="admin-panel-heading">
+        <div>
+          <h4>{kind === 'routine' ? 'Routine days' : 'Workout days'}</h4>
+          <p>{planDays.length} days loaded</p>
+        </div>
+        <button className="secondary-action" onClick={onAddDay} type="button">
+          <Plus size={17} />
+          Add day
+        </button>
+      </div>
+      {!planDays.length ? <p className="empty-state">No days yet.</p> : null}
+      {planDays.map((day, dayIndex) => {
+        const exercisesForDay = Array.isArray(day.exercises) ? day.exercises : []
+        return (
+          <article className="plan-day-card" key={`${kind}-${day.day}-${dayIndex}`}>
+            <div className="plan-day-header">
+              <div className="form-grid two">
+                <Field
+                  label="Day"
+                  type="number"
+                  value={day.day || dayIndex + 1}
+                  onChange={(value) => onUpdateDay(dayIndex, 'day', value)}
+                />
+                <Field
+                  label="Muscle group"
+                  value={day.muscle_group || ''}
+                  onChange={(value) => onUpdateDay(dayIndex, 'muscle_group', value)}
+                />
+              </div>
+              <button className="icon-button danger-button" onClick={() => onDeleteDay(dayIndex)} type="button" aria-label="Delete day" title="Delete day">
+                <Trash2 size={17} />
+              </button>
+            </div>
+
+            <div className="plan-exercise-list">
+              {exercisesForDay.map((exercise, exerciseIndex) => (
+                <div className="plan-exercise-editor" key={`${exercise.name}-${exerciseIndex}`}>
+                  <div className="form-grid three">
+                    <Field
+                      label="Exercise"
+                      value={exercise.name || ''}
+                      onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'name', value)}
+                    />
+                    <Field
+                      label="Reps"
+                      value={exercise.reps || ''}
+                      onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'reps', value)}
+                    />
+                    <Field
+                      label="Sets"
+                      type="number"
+                      value={exercise.sets || 0}
+                      onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'sets', value)}
+                    />
+                  </div>
+                  <div className="form-grid three">
+                    <Field
+                      label="Calories"
+                      type="number"
+                      value={exercise.calories_burned || 0}
+                      onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'calories_burned', value)}
+                    />
+                    {kind === 'routine' ? (
+                      <>
+                        <Field
+                          label="Weight"
+                          type="number"
+                          value={exercise.weight || 0}
+                          onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'weight', value)}
+                        />
+                        <SelectField
+                          label="Unit"
+                          value={exercise.unit || 'lb'}
+                          onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'unit', value)}
+                          options={['lb', 'kg']}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Field
+                          label="English note"
+                          value={exercise.descriptionEng || ''}
+                          onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'descriptionEng', value)}
+                        />
+                        <Field
+                          label="Spanish note"
+                          value={exercise.descriptionEsp || ''}
+                          onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'descriptionEsp', value)}
+                        />
+                      </>
+                    )}
+                  </div>
+                  {kind === 'routine' ? (
+                    <div className="form-grid two">
+                      <Field
+                        label="English note"
+                        value={exercise.descriptionEng || ''}
+                        onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'descriptionEng', value)}
+                      />
+                      <Field
+                        label="Spanish note"
+                        value={exercise.descriptionEsp || ''}
+                        onChange={(value) => onUpdateExercise(dayIndex, exerciseIndex, 'descriptionEsp', value)}
+                      />
+                    </div>
+                  ) : null}
+                  <button className="secondary-action danger-action wide" onClick={() => onDeleteExercise(dayIndex, exerciseIndex)} type="button">
+                    <Trash2 size={17} />
+                    Delete exercise
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button className="secondary-action wide" onClick={() => onAddExercise(dayIndex)} type="button">
+              <Plus size={17} />
+              Add exercise
+            </button>
+          </article>
+        )
+      })}
     </div>
   )
 }
@@ -1459,6 +2037,19 @@ function normalizePlan(payload) {
   return Array.isArray(candidate) ? candidate : []
 }
 
+function parseTrainingJSON(value) {
+  if (!value) return { workout_plan: [] }
+  try {
+    const parsed = JSON.parse(value)
+    return {
+      ...parsed,
+      workout_plan: Array.isArray(parsed?.workout_plan) ? parsed.workout_plan : [],
+    }
+  } catch {
+    return { workout_plan: [] }
+  }
+}
+
 function safeJson(text) {
   try {
     return JSON.parse(text)
@@ -1476,7 +2067,15 @@ function latestValue(rows, keys) {
   return ''
 }
 
+function formatHeight(user) {
+  if (!user) return ''
+  if (user.height) return `${user.height} cm`
+  if (user.heightFt || user.heightInc) return `${user.heightFt || 0} ft ${user.heightInc || 0} in`
+  return ''
+}
+
 function formatDate(value) {
+  if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
