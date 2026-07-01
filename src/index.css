@@ -301,6 +301,35 @@ a {
   background: #1a2029;
 }
 
+.admin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.danger-button {
+  color: #ffd7d7;
+  background: rgba(240, 82, 82, 0.1);
+  border-color: rgba(240, 82, 82, 0.34);
+}
+
+.admin-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-panel-heading .panel-header {
+  margin-bottom: 0;
+}
+
+.danger-action {
+  color: #ffd7d7;
+  background: rgba(240, 82, 82, 0.1);
+  border-color: rgba(240, 82, 82, 0.34);
+}
+
 .workout-row span,
 .exercise-item span {
   width: 42px;
@@ -533,7 +562,7 @@ a {
 
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   padding: 6px;
   margin-bottom: 16px;

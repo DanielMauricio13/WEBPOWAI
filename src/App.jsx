@@ -12,6 +12,7 @@ import {
   Loader2,
   LockKeyhole,
   LogOut,
+  Mail,
   Menu,
   MessageSquare,
   Moon,
@@ -20,12 +21,14 @@ import {
   ShieldCheck,
   Sparkles,
   TimerReset,
+  Trash2,
   Utensils,
+  Users,
   X,
 } from 'lucide-react'
 import './index.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api/'
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://powai-ea13190d89b9.herokuapp.com/'
 const TOKEN_KEY = 'powai.web.jwt'
 
 const registerDefaults = {
@@ -86,6 +89,7 @@ function App() {
   const [weights, setWeights] = useState([])
   const [nutrition, setNutrition] = useState([])
   const [liftHistory, setLiftHistory] = useState([])
+  const [adminData, setAdminData] = useState(null)
   const [activePage, setActivePage] = useState('dashboard')
   const [authMode, setAuthMode] = useState('login')
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -102,18 +106,31 @@ function App() {
     setLoading(true)
     setNotice('')
     try {
-      const [me, training, weightRows, nutritionRows, setRows] = await Promise.all([
-        api('users/me', { token }),
+      const me = await api('users/me', { token })
+      setUser(me)
+
+      if (me?.isAdmin) {
+        const adminSummary = await api('admin/summary', { token }).catch(() => null)
+        setPlan([])
+        setWeights([])
+        setNutrition([])
+        setLiftHistory([])
+        setAdminData(adminSummary)
+        setActivePage('admin')
+        return
+      }
+
+      const [training, weightRows, nutritionRows, setRows] = await Promise.all([
         api('training/userExcersises', { token }).catch(() => null),
         api('weights', { token }).catch(() => []),
         api('daily-nutrition', { token }).catch(() => []),
         api('exercise-set-weights', { token }).catch(() => []),
       ])
-      setUser(me)
       setPlan(normalizePlan(training))
       setWeights(Array.isArray(weightRows) ? weightRows : [])
       setNutrition(Array.isArray(nutritionRows) ? nutritionRows : [])
       setLiftHistory(Array.isArray(setRows) ? setRows : [])
+      setAdminData(null)
     } catch (error) {
       signOut()
       setNotice(error.message || 'Your session expired. Please log in again.')
@@ -136,6 +153,7 @@ function App() {
     setWeights([])
     setNutrition([])
     setLiftHistory([])
+    setAdminData(null)
   }
 
   if (!token) {
@@ -152,6 +170,7 @@ function App() {
   return (
     <AuthenticatedApp
       activePage={activePage}
+      adminData={adminData}
       drawerOpen={drawerOpen}
       liftHistory={liftHistory}
       loading={loading}
@@ -161,6 +180,7 @@ function App() {
       plan={plan}
       setActivePage={setActivePage}
       setDrawerOpen={setDrawerOpen}
+      token={token}
       user={user}
       weights={weights}
     />
@@ -306,8 +326,13 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
             <button className={authMode === 'register' ? 'active' : ''} onClick={() => setAuthMode('register')} type="button">
               Register
             </button>
+            <button className={authMode === 'admin' ? 'active' : ''} onClick={() => setAuthMode('admin')} type="button">
+              Admin
+            </button>
           </div>
-          {authMode === 'login' ? <LoginForm onLogin={onLogin} /> : <RegisterForm setAuthMode={setAuthMode} />}
+          {authMode === 'login' ? <LoginForm onLogin={onLogin} /> : null}
+          {authMode === 'register' ? <RegisterForm setAuthMode={setAuthMode} /> : null}
+          {authMode === 'admin' ? <AdminRegisterForm onLogin={onLogin} /> : null}
         </div>
       </section>
 
@@ -328,6 +353,62 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
         <a href="#privacy">Privacy Policy</a>
       </footer>
     </main>
+  )
+}
+
+function AdminRegisterForm({ onLogin }) {
+  const [form, setForm] = useState({ email: '', password: '', verificationCode: '' })
+  const [status, setStatus] = useState('')
+  const [requesting, setRequesting] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function requestCode() {
+    setRequesting(true)
+    setStatus('')
+    try {
+      await api('admin/request-code', { method: 'POST', body: { email: form.email } })
+      setStatus('Verification code sent to PowAI support.')
+    } catch (error) {
+      setStatus(error.message || 'Could not send verification code.')
+    } finally {
+      setRequesting(false)
+    }
+  }
+
+  async function submit(event) {
+    event.preventDefault()
+    setSubmitting(true)
+    setStatus('')
+    try {
+      const response = await api('admin/register', { method: 'POST', body: form })
+      onLogin(response.token)
+    } catch (error) {
+      setStatus(error.message || 'Admin registration failed.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }))
+  const success = status.includes('sent')
+
+  return (
+    <form className="form-stack" onSubmit={submit}>
+      <Field label="Admin email" type="email" value={form.email} onChange={(value) => update('email', value)} required />
+      <Field label="Password" type="password" value={form.password} onChange={(value) => update('password', value)} required />
+      <div className="form-grid two">
+        <Field label="Verification code" value={form.verificationCode} onChange={(value) => update('verificationCode', value)} required />
+        <button className="secondary-action wide" disabled={requesting || !form.email} onClick={requestCode} type="button">
+          {requesting ? <Loader2 className="spin" size={18} /> : <Mail size={18} />}
+          Send code
+        </button>
+      </div>
+      {status ? <p className={`form-status ${success ? 'success' : 'error'}`}>{status}</p> : null}
+      <button className="primary-action wide" disabled={submitting} type="submit">
+        {submitting ? <Loader2 className="spin" size={18} /> : <ShieldCheck size={18} />}
+        Create admin account
+      </button>
+    </form>
   )
 }
 
@@ -589,6 +670,7 @@ function PrivacySection() {
 
 function AuthenticatedApp({
   activePage,
+  adminData,
   drawerOpen,
   liftHistory,
   loading,
@@ -598,6 +680,7 @@ function AuthenticatedApp({
   plan,
   setActivePage,
   setDrawerOpen,
+  token,
   user,
   weights,
 }) {
@@ -607,6 +690,7 @@ function AuthenticatedApp({
     ['nutrition', Utensils, 'Nutrition'],
     ['progress', Scale, 'Progress'],
   ]
+  const visibleNav = user?.isAdmin ? [['admin', ShieldCheck, 'Admin']] : nav
 
   return (
     <main className="app-shell">
@@ -622,7 +706,7 @@ function AuthenticatedApp({
           </button>
         </div>
         <nav className="side-nav" aria-label="App navigation">
-          {nav.map(([key, Icon, label]) => (
+          {visibleNav.map(([key, Icon, label]) => (
             <button
               className={activePage === key ? 'active' : ''}
               key={key}
@@ -655,7 +739,7 @@ function AuthenticatedApp({
             <Menu size={20} />
           </button>
           <div>
-            <span>Account synced</span>
+            <span>{user?.isAdmin ? 'Admin access' : 'Account synced'}</span>
             <h2>{pageTitle(activePage)}</h2>
           </div>
           <button className="secondary-action" onClick={onRefresh} disabled={loading} type="button">
@@ -666,11 +750,199 @@ function AuthenticatedApp({
 
         {loading ? <LoadingPanel /> : null}
         {!loading && activePage === 'dashboard' ? <Dashboard user={user} plan={plan} weights={weights} nutrition={nutrition} liftHistory={liftHistory} /> : null}
+        {!loading && activePage === 'admin' ? <AdminPage data={adminData} onRefresh={onRefresh} token={token} /> : null}
         {!loading && activePage === 'workouts' ? <WorkoutPage plan={plan} /> : null}
         {!loading && activePage === 'nutrition' ? <NutritionPage user={user} nutrition={nutrition} /> : null}
         {!loading && activePage === 'progress' ? <ProgressPage weights={weights} liftHistory={liftHistory} /> : null}
       </section>
     </main>
+  )
+}
+
+function AdminPage({ data, onRefresh, token }) {
+  const [deleteStatus, setDeleteStatus] = useState('')
+  const [deletingKey, setDeletingKey] = useState('')
+
+  if (!data) {
+    return (
+      <section className="loading-panel">
+        <ShieldCheck size={28} />
+        <h3>Admin data unavailable</h3>
+        <p>Refresh the workspace after signing in with an admin account.</p>
+      </section>
+    )
+  }
+
+  const metrics = data.metrics || {}
+  const users = Array.isArray(data.users) ? data.users : []
+  const tickets = Array.isArray(data.supportTickets) ? data.supportTickets : []
+  const crashes = Array.isArray(data.crashReports) ? data.crashReports : []
+  const emails = Array.isArray(data.emailLogs) ? data.emailLogs : []
+
+  async function deleteAdminRecord(type, id) {
+    if (!id) return
+    const label = type === 'crash' ? 'crash report' : 'email log'
+    if (!window.confirm(`Delete this ${label}?`)) return
+
+    const path = type === 'crash' ? `admin/crash-reports/${id}` : `admin/email-logs/${id}`
+    const key = `${type}-${id}`
+    setDeletingKey(key)
+    setDeleteStatus('')
+    try {
+      await api(path, { method: 'DELETE', token })
+      setDeleteStatus(`${label[0].toUpperCase()}${label.slice(1)} deleted.`)
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || `Could not delete ${label}.`)
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  async function deleteAllAdminRecords(type) {
+    const label = type === 'crash' ? 'crash reports' : 'email logs'
+    const count = type === 'crash' ? crashes.length : emails.length
+    if (!count) return
+    if (!window.confirm(`Delete all ${label}? This cannot be undone.`)) return
+
+    const path = type === 'crash' ? 'admin/crash-reports' : 'admin/email-logs'
+    setDeletingKey(`${type}-all`)
+    setDeleteStatus('')
+    try {
+      await api(path, { method: 'DELETE', token })
+      setDeleteStatus(`All ${label} deleted.`)
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || `Could not delete all ${label}.`)
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  return (
+    <div className="workspace-grid">
+      <section className="summary-panel wide-panel">
+        <div>
+          <p className="eyebrow">Admin console</p>
+          <h3>PowAI operations</h3>
+          <p>Users, support messages, crash reports, and outbound email activity from the backend.</p>
+        </div>
+        <div className="hero-metrics">
+          <MetricPill label="Users" value={metrics.users ?? users.length} />
+          <MetricPill label="Crashes" value={metrics.crashReports ?? crashes.length} />
+          <MetricPill label="Emails" value={metrics.emails ?? emails.length} />
+        </div>
+      </section>
+
+      <StatCard icon={Users} label="Admin users" value={metrics.admins ?? '--'} detail="Accounts with admin privileges" />
+      <StatCard icon={LifeBuoy} label="Tickets" value={metrics.supportTickets ?? tickets.length} detail="Support tickets received" />
+      <StatCard icon={Activity} label="Crash reports" value={metrics.crashReports ?? crashes.length} detail="Runtime and client reports" />
+      <StatCard icon={Mail} label="Emails sent" value={metrics.emails ?? emails.length} detail="Logged outbound emails" />
+
+      <section className="data-panel">
+        <PanelHeader icon={Users} title="Users" subtitle={`${users.length} accounts`} />
+        <Rows
+          empty="No users returned yet."
+          rows={users.slice(0, 12).map((entry) => ({
+            title: entry.email || 'No email',
+            meta: `${entry.firstName || 'PowAI'} ${entry.lastName || 'user'} · ${entry.membershipStatus || 'unknown'}`,
+            value: entry.isAdmin ? 'Admin' : entry.membershipPlan || 'User',
+          }))}
+        />
+      </section>
+
+      <section className="data-panel">
+        <PanelHeader icon={LifeBuoy} title="Support tickets" subtitle={`${tickets.length} latest`} />
+        <Rows
+          empty="No support tickets returned yet."
+          rows={tickets.slice(0, 10).map((entry) => ({
+            title: entry.subject || 'Support ticket',
+            meta: `${entry.email || 'No email'} · ${formatDate(entry.createdAt)}`,
+            value: entry.name || 'User',
+          }))}
+        />
+      </section>
+
+      <section className="data-panel">
+        <div className="admin-panel-heading">
+          <PanelHeader icon={Activity} title="Crash reports" subtitle={`${crashes.length} latest`} />
+          <button
+            className="secondary-action danger-action"
+            disabled={!crashes.length || deletingKey === 'crash-all'}
+            onClick={() => deleteAllAdminRecords('crash')}
+            type="button"
+          >
+            {deletingKey === 'crash-all' ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
+            Delete all
+          </button>
+        </div>
+        {deleteStatus ? <p className={`form-status ${deleteStatus.includes('deleted') ? 'success' : 'error'}`}>{deleteStatus}</p> : null}
+        <AdminRows
+          empty="No crash reports returned yet."
+          rows={crashes.slice(0, 10).map((entry) => ({
+            id: entry.id,
+            title: entry.subject || entry.source || 'Crash report',
+            meta: `${entry.email || 'No user email'} · ${entry.path || entry.source || 'client'} · ${formatDate(entry.createdAt)}`,
+            value: entry.statusCode || entry.method || 'Report',
+            deleting: deletingKey === `crash-${entry.id}`,
+            onDelete: () => deleteAdminRecord('crash', entry.id),
+          }))}
+        />
+      </section>
+
+      <section className="data-panel">
+        <div className="admin-panel-heading">
+          <PanelHeader icon={Mail} title="Email logs" subtitle={`${emails.length} latest`} />
+          <button
+            className="secondary-action danger-action"
+            disabled={!emails.length || deletingKey === 'email-all'}
+            onClick={() => deleteAllAdminRecords('email')}
+            type="button"
+          >
+            {deletingKey === 'email-all' ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
+            Delete all
+          </button>
+        </div>
+        <AdminRows
+          empty="No email logs returned yet."
+          rows={emails.slice(0, 10).map((entry) => ({
+            id: entry.id,
+            title: entry.subject || 'Email',
+            meta: `${entry.recipient || 'recipient'} · ${formatDate(entry.createdAt)}`,
+            value: entry.status || 'sent',
+            deleting: deletingKey === `email-${entry.id}`,
+            onDelete: () => deleteAdminRecord('email', entry.id),
+          }))}
+        />
+      </section>
+    </div>
+  )
+}
+
+function AdminRows({ empty, rows }) {
+  if (!rows.length) return <p className="empty-state">{empty}</p>
+  return (
+    <div className="rows">
+      {rows.map((row, index) => (
+        <div className="history-row admin-row" key={`${row.id || row.title}-${index}`}>
+          <div>
+            <strong>{formatDate(row.title)}</strong>
+            <small>{row.meta}</small>
+          </div>
+          <b>{row.value}</b>
+          <button
+            className="icon-button danger-button"
+            disabled={row.deleting}
+            onClick={row.onDelete}
+            type="button"
+            aria-label={`Delete ${row.title}`}
+            title="Delete"
+          >
+            {row.deleting ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
+          </button>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -989,6 +1261,7 @@ function formatDate(value) {
 
 function pageTitle(page) {
   return {
+    admin: 'Admin',
     dashboard: 'Dashboard',
     workouts: 'Workout plan',
     nutrition: 'Nutrition',
