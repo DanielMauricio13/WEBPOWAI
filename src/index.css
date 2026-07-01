@@ -283,6 +283,7 @@ a {
 
 .workout-stack,
 .exercise-list,
+.image-list,
 .rows,
 .macro-bars,
 .form-stack,
@@ -320,6 +321,10 @@ a {
   margin-bottom: 12px;
 }
 
+.admin-status {
+  grid-column: 1 / -1;
+}
+
 .admin-panel-heading .panel-header {
   margin-bottom: 0;
 }
@@ -328,6 +333,54 @@ a {
   color: #ffd7d7;
   background: rgba(240, 82, 82, 0.1);
   border-color: rgba(240, 82, 82, 0.34);
+}
+
+.admin-tool-form {
+  margin-bottom: 16px;
+}
+
+.image-row {
+  min-height: 96px;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #1a2029;
+}
+
+.image-row img {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #0f141b;
+}
+
+.image-row strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.image-row small {
+  color: var(--soft);
+}
+
+.toggle-row {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
 }
 
 .workout-row span,

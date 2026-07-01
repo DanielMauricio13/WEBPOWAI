@@ -8,6 +8,7 @@ import {
   Dumbbell,
   Flame,
   HeartPulse,
+  Image,
   LifeBuoy,
   Loader2,
   LockKeyhole,
@@ -762,6 +763,16 @@ function AuthenticatedApp({
 function AdminPage({ data, onRefresh, token }) {
   const [deleteStatus, setDeleteStatus] = useState('')
   const [deletingKey, setDeletingKey] = useState('')
+  const [imageForm, setImageForm] = useState({ exerciseName: '', muscleCategory: '' })
+  const [exerciseForm, setExerciseForm] = useState({
+    exerciseName: '',
+    muscleCategory: '',
+    muscle: '',
+    expectedCaloriesBurned: 50,
+    descriptionEnglish: '',
+    descriptionSpanish: '',
+    generateImage: true,
+  })
 
   if (!data) {
     return (
@@ -778,6 +789,8 @@ function AdminPage({ data, onRefresh, token }) {
   const tickets = Array.isArray(data.supportTickets) ? data.supportTickets : []
   const crashes = Array.isArray(data.crashReports) ? data.crashReports : []
   const emails = Array.isArray(data.emailLogs) ? data.emailLogs : []
+  const images = Array.isArray(data.exerciseImages) ? data.exerciseImages : []
+  const exercises = Array.isArray(data.exercises) ? data.exercises : []
 
   async function deleteAdminRecord(type, id) {
     if (!id) return
@@ -819,6 +832,77 @@ function AdminPage({ data, onRefresh, token }) {
     }
   }
 
+  async function deleteExerciseImage(id) {
+    if (!id || !window.confirm('Delete this exercise image?')) return
+
+    setDeletingKey(`image-${id}`)
+    setDeleteStatus('')
+    try {
+      await api(`admin/exercise-images/${id}`, { method: 'DELETE', token })
+      setDeleteStatus('Exercise image deleted.')
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not delete exercise image.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  async function regenerateExerciseImage(event) {
+    event.preventDefault()
+    setDeletingKey('image-regenerate')
+    setDeleteStatus('')
+    try {
+      await api('admin/exercise-images/regenerate', {
+        method: 'POST',
+        token,
+        body: {
+          exerciseName: imageForm.exerciseName,
+          muscleCategory: imageForm.muscleCategory || null,
+        },
+        timeout: 90000,
+      })
+      setDeleteStatus('Exercise image regenerated.')
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not regenerate exercise image.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  async function createCustomExercise(event) {
+    event.preventDefault()
+    setDeletingKey('exercise-create')
+    setDeleteStatus('')
+    try {
+      await api('admin/exercises', {
+        method: 'POST',
+        token,
+        body: {
+          ...exerciseForm,
+          expectedCaloriesBurned: Number(exerciseForm.expectedCaloriesBurned),
+        },
+        timeout: 90000,
+      })
+      setExerciseForm({
+        exerciseName: '',
+        muscleCategory: '',
+        muscle: '',
+        expectedCaloriesBurned: 50,
+        descriptionEnglish: '',
+        descriptionSpanish: '',
+        generateImage: true,
+      })
+      setDeleteStatus('Custom exercise created.')
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not create custom exercise.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
   return (
     <div className="workspace-grid">
       <section className="summary-panel wide-panel">
@@ -838,6 +922,14 @@ function AdminPage({ data, onRefresh, token }) {
       <StatCard icon={LifeBuoy} label="Tickets" value={metrics.supportTickets ?? tickets.length} detail="Support tickets received" />
       <StatCard icon={Activity} label="Crash reports" value={metrics.crashReports ?? crashes.length} detail="Runtime and client reports" />
       <StatCard icon={Mail} label="Emails sent" value={metrics.emails ?? emails.length} detail="Logged outbound emails" />
+      <StatCard icon={Image} label="Exercise images" value={metrics.exerciseImages ?? images.length} detail="Generated training images" />
+      <StatCard icon={Dumbbell} label="Exercises" value={metrics.exercises ?? exercises.length} detail="Exercise library entries" />
+
+      {deleteStatus ? (
+        <section className={`admin-status form-status ${deleteStatus.includes('deleted') || deleteStatus.includes('created') || deleteStatus.includes('regenerated') ? 'success' : 'error'}`}>
+          {deleteStatus}
+        </section>
+      ) : null}
 
       <section className="data-panel">
         <PanelHeader icon={Users} title="Users" subtitle={`${users.length} accounts`} />
@@ -876,7 +968,6 @@ function AdminPage({ data, onRefresh, token }) {
             Delete all
           </button>
         </div>
-        {deleteStatus ? <p className={`form-status ${deleteStatus.includes('deleted') ? 'success' : 'error'}`}>{deleteStatus}</p> : null}
         <AdminRows
           empty="No crash reports returned yet."
           rows={crashes.slice(0, 10).map((entry) => ({
@@ -915,6 +1006,111 @@ function AdminPage({ data, onRefresh, token }) {
           }))}
         />
       </section>
+
+      <section className="data-panel">
+        <PanelHeader icon={Image} title="Exercise images" subtitle={`${images.length} saved`} />
+        <form className="form-stack admin-tool-form" onSubmit={regenerateExerciseImage}>
+          <div className="form-grid two">
+            <label className="field">
+              <span>Exercise name</span>
+              <input
+                list="admin-exercise-options"
+                value={imageForm.exerciseName}
+                onChange={(event) => setImageForm({ ...imageForm, exerciseName: event.target.value })}
+                required
+              />
+            </label>
+            <Field
+              label="Muscle category"
+              value={imageForm.muscleCategory}
+              onChange={(value) => setImageForm({ ...imageForm, muscleCategory: value })}
+            />
+          </div>
+          <button className="secondary-action wide" disabled={deletingKey === 'image-regenerate'} type="submit">
+            {deletingKey === 'image-regenerate' ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />}
+            Regenerate with ChatGPT
+          </button>
+        </form>
+        <datalist id="admin-exercise-options">
+          {exercises.map((exercise) => (
+            <option key={exercise.id || exercise.exerciseName} value={exercise.exerciseName} />
+          ))}
+        </datalist>
+        <ImageRows
+          empty="No exercise images returned yet."
+          rows={images.slice(0, 12).map((entry) => ({
+            id: entry.id,
+            title: entry.filename,
+            meta: `${Math.round((entry.byteSize || 0) / 1024)} KB`,
+            imageUrl: apiUrl(`images/imageName?name=${encodeURIComponent(entry.filename)}`),
+            deleting: deletingKey === `image-${entry.id}`,
+            onDelete: () => deleteExerciseImage(entry.id),
+          }))}
+        />
+      </section>
+
+      <section className="data-panel">
+        <PanelHeader icon={Dumbbell} title="Create exercise" subtitle="Add a custom library entry" />
+        <form className="form-stack" onSubmit={createCustomExercise}>
+          <div className="form-grid two">
+            <Field
+              label="Exercise name"
+              value={exerciseForm.exerciseName}
+              onChange={(value) => setExerciseForm({ ...exerciseForm, exerciseName: value })}
+              required
+            />
+            <Field
+              label="Muscle category"
+              value={exerciseForm.muscleCategory}
+              onChange={(value) => setExerciseForm({ ...exerciseForm, muscleCategory: value })}
+              required
+            />
+          </div>
+          <div className="form-grid two">
+            <Field
+              label="Muscle"
+              value={exerciseForm.muscle}
+              onChange={(value) => setExerciseForm({ ...exerciseForm, muscle: value })}
+              required
+            />
+            <Field
+              label="Calories"
+              type="number"
+              value={exerciseForm.expectedCaloriesBurned}
+              onChange={(value) => setExerciseForm({ ...exerciseForm, expectedCaloriesBurned: value })}
+              required
+            />
+          </div>
+          <label className="field">
+            <span>English description</span>
+            <textarea
+              value={exerciseForm.descriptionEnglish}
+              onChange={(event) => setExerciseForm({ ...exerciseForm, descriptionEnglish: event.target.value })}
+              rows="3"
+            />
+          </label>
+          <label className="field">
+            <span>Spanish description</span>
+            <textarea
+              value={exerciseForm.descriptionSpanish}
+              onChange={(event) => setExerciseForm({ ...exerciseForm, descriptionSpanish: event.target.value })}
+              rows="3"
+            />
+          </label>
+          <label className="toggle-row">
+            <input
+              checked={exerciseForm.generateImage}
+              onChange={(event) => setExerciseForm({ ...exerciseForm, generateImage: event.target.checked })}
+              type="checkbox"
+            />
+            <span>Generate exercise, muscle, and category images</span>
+          </label>
+          <button className="primary-action wide" disabled={deletingKey === 'exercise-create'} type="submit">
+            {deletingKey === 'exercise-create' ? <Loader2 className="spin" size={17} /> : <Dumbbell size={17} />}
+            Add exercise
+          </button>
+        </form>
+      </section>
     </div>
   )
 }
@@ -930,6 +1126,33 @@ function AdminRows({ empty, rows }) {
             <small>{row.meta}</small>
           </div>
           <b>{row.value}</b>
+          <button
+            className="icon-button danger-button"
+            disabled={row.deleting}
+            onClick={row.onDelete}
+            type="button"
+            aria-label={`Delete ${row.title}`}
+            title="Delete"
+          >
+            {row.deleting ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ImageRows({ empty, rows }) {
+  if (!rows.length) return <p className="empty-state">{empty}</p>
+  return (
+    <div className="image-list">
+      {rows.map((row, index) => (
+        <div className="image-row" key={`${row.id || row.title}-${index}`}>
+          <img src={row.imageUrl} alt="" />
+          <div>
+            <strong>{row.title}</strong>
+            <small>{row.meta}</small>
+          </div>
           <button
             className="icon-button danger-button"
             disabled={row.deleting}
