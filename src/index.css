@@ -413,6 +413,13 @@ a {
   accent-color: var(--green);
 }
 
+.form-helper {
+  margin: 0;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .code-editor {
   min-height: 320px;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;

@@ -32,6 +32,7 @@ import './index.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://powai-ea13190d89b9.herokuapp.com/'
 const TOKEN_KEY = 'powai.web.jwt'
+const TOKEN_EXPIRES_KEY = 'powai.web.jwt.expiresAt'
 
 const registerDefaults = {
   firstName: '',
@@ -85,7 +86,7 @@ const demoPlan = [
 ]
 
 function App() {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '')
+  const [token, setToken] = useState(readStoredToken)
   const [user, setUser] = useState(null)
   const [plan, setPlan] = useState([])
   const [weights, setWeights] = useState([])
@@ -109,10 +110,18 @@ function App() {
     setNotice('')
     try {
       const me = await api('users/me', { token })
-      setUser(me)
+      let adminSummary = null
 
-      if (me?.isAdmin) {
-        const adminSummary = await api('admin/summary', { token }).catch(() => null)
+      try {
+        adminSummary = await api('admin/summary', { token })
+      } catch (error) {
+        // Public user responses no longer expose isAdmin. A forbidden response
+        // from the protected admin route is the authoritative non-admin signal.
+        if (error.status !== 403) throw error
+      }
+
+      if (adminSummary) {
+        setUser({ ...me, isAdmin: true })
         setPlan([])
         setWeights([])
         setNutrition([])
@@ -121,6 +130,8 @@ function App() {
         setActivePage('admin')
         return
       }
+
+      setUser({ ...me, isAdmin: false })
 
       const [training, weightRows, nutritionRows, setRows] = await Promise.all([
         api('training/userExcersises', { token }).catch(() => null),
@@ -134,21 +145,29 @@ function App() {
       setLiftHistory(Array.isArray(setRows) ? setRows : [])
       setAdminData(null)
     } catch (error) {
-      signOut()
+      clearSession()
       setNotice(error.message || 'Your session expired. Please log in again.')
     } finally {
       setLoading(false)
     }
   }
 
-  function signIn(nextToken) {
+  function signIn(session) {
+    const nextToken = typeof session === 'string' ? session : session?.token
+    if (!nextToken) {
+      setNotice('The server did not return a valid session. Please try again.')
+      return
+    }
     localStorage.setItem(TOKEN_KEY, nextToken)
+    if (session?.expiresAt) localStorage.setItem(TOKEN_EXPIRES_KEY, session.expiresAt)
+    else localStorage.removeItem(TOKEN_EXPIRES_KEY)
     setToken(nextToken)
     setActivePage('dashboard')
   }
 
-  function signOut() {
+  function clearSession() {
     localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(TOKEN_EXPIRES_KEY)
     setToken('')
     setUser(null)
     setPlan([])
@@ -156,6 +175,15 @@ function App() {
     setNutrition([])
     setLiftHistory([])
     setAdminData(null)
+    setActivePage('dashboard')
+  }
+
+  async function signOut() {
+    const tokenToRevoke = token
+    clearSession()
+    if (tokenToRevoke) {
+      await api('logout', { method: 'POST', token: tokenToRevoke }).catch(() => null)
+    }
   }
 
   if (!token) {
@@ -329,7 +357,7 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
               Register
             </button>
             <button className={authMode === 'admin' ? 'active' : ''} onClick={() => setAuthMode('admin')} type="button">
-              Admin
+              Admin setup
             </button>
           </div>
           {authMode === 'login' ? <LoginForm onLogin={onLogin} /> : null}
@@ -383,7 +411,7 @@ function AdminRegisterForm({ onLogin }) {
     setStatus('')
     try {
       const response = await api('admin/register', { method: 'POST', body: form })
-      onLogin(response.token)
+      onLogin(response)
     } catch (error) {
       setStatus(error.message || 'Admin registration failed.')
     } finally {
@@ -396,10 +424,13 @@ function AdminRegisterForm({ onLogin }) {
 
   return (
     <form className="form-stack" onSubmit={submit}>
+      <p className="form-helper">
+        Initial setup only. Existing administrators should use the Login tab with their normal email and password.
+      </p>
       <Field label="Admin email" type="email" value={form.email} onChange={(value) => update('email', value)} required />
-      <Field label="Password" type="password" value={form.password} onChange={(value) => update('password', value)} required />
+      <Field label="Password" type="password" value={form.password} onChange={(value) => update('password', value)} minLength="10" maxLength="128" required />
       <div className="form-grid two">
-        <Field label="Verification code" value={form.verificationCode} onChange={(value) => update('verificationCode', value)} required />
+        <Field label="Verification code" value={form.verificationCode} onChange={(value) => update('verificationCode', value)} inputMode="numeric" maxLength="6" minLength="6" pattern="[0-9]{6}" required />
         <button className="secondary-action wide" disabled={requesting || !form.email} onClick={requestCode} type="button">
           {requesting ? <Loader2 className="spin" size={18} /> : <Mail size={18} />}
           Send code
@@ -425,7 +456,7 @@ function LoginForm({ onLogin }) {
     setStatus('')
     try {
       const response = await api('login', { method: 'POST', body: form })
-      onLogin(response.token)
+      onLogin(response)
     } catch (error) {
       setStatus(error.message || 'Login failed.')
     } finally {
@@ -436,7 +467,7 @@ function LoginForm({ onLogin }) {
   return (
     <form className="form-stack" onSubmit={submit}>
       <Field label="Email" type="email" value={form.email} onChange={(email) => setForm({ ...form, email })} required />
-      <Field label="Password" type="password" value={form.password} onChange={(password) => setForm({ ...form, password })} required />
+      <Field label="Password" type="password" value={form.password} onChange={(password) => setForm({ ...form, password })} maxLength="128" required />
       {status ? <p className="form-status error">{status}</p> : null}
       <button className="primary-action wide" disabled={submitting} type="submit">
         {submitting ? <Loader2 className="spin" size={18} /> : <LockKeyhole size={18} />}
@@ -488,7 +519,7 @@ function RegisterForm({ setAuthMode }) {
         <Field label="Last name" value={form.lastName} onChange={(value) => update('lastName', value)} required />
       </div>
       <Field label="Email" type="email" value={form.email} onChange={(value) => update('email', value)} required />
-      <Field label="Password" type="password" value={form.password} onChange={(value) => update('password', value)} required />
+      <Field label="Password" type="password" value={form.password} onChange={(value) => update('password', value)} minLength="10" maxLength="128" required />
       <div className="form-grid three">
         <Field label="Age" type="number" value={form.age} onChange={(value) => update('age', value)} required />
         <SelectField label="Gender" value={form.gender} onChange={(value) => update('gender', value)} options={['Male', 'Female', 'Other']} />
@@ -542,13 +573,13 @@ function SupportForm({ status, setStatus }) {
   return (
     <form className="support-form" onSubmit={submit}>
       <div className="form-grid two">
-        <Field label="Name" value={form.name} onChange={(value) => update('name', value)} required />
+        <Field label="Name" value={form.name} onChange={(value) => update('name', value)} maxLength="100" required />
         <Field label="Email" type="email" value={form.email} onChange={(value) => update('email', value)} required />
       </div>
-      <Field label="Subject" value={form.subject} onChange={(value) => update('subject', value)} required />
+      <Field label="Subject" value={form.subject} onChange={(value) => update('subject', value)} maxLength="200" required />
       <label className="field">
         <span>Message</span>
-        <textarea value={form.message} onChange={(event) => update('message', event.target.value)} rows="5" required />
+        <textarea value={form.message} onChange={(event) => update('message', event.target.value)} maxLength="5000" rows="5" required />
       </label>
       {status ? <p className={`form-status ${status.includes('sent') ? 'success' : 'error'}`}>{status}</p> : null}
       <button className="primary-action wide" disabled={submitting} type="submit">
@@ -752,7 +783,15 @@ function AuthenticatedApp({
 
         {loading ? <LoadingPanel /> : null}
         {!loading && activePage === 'dashboard' ? <Dashboard user={user} plan={plan} weights={weights} nutrition={nutrition} liftHistory={liftHistory} /> : null}
-        {!loading && activePage === 'admin' ? <AdminPage data={adminData} onRefresh={onRefresh} token={token} /> : null}
+        {!loading && activePage === 'admin' ? (
+          <AdminPage
+            currentUserID={user?.id}
+            data={adminData}
+            onRefresh={onRefresh}
+            onSignOut={onSignOut}
+            token={token}
+          />
+        ) : null}
         {!loading && activePage === 'workouts' ? <WorkoutPage plan={plan} /> : null}
         {!loading && activePage === 'nutrition' ? <NutritionPage user={user} nutrition={nutrition} /> : null}
         {!loading && activePage === 'progress' ? <ProgressPage weights={weights} liftHistory={liftHistory} /> : null}
@@ -761,7 +800,7 @@ function AuthenticatedApp({
   )
 }
 
-function AdminPage({ data, onRefresh, token }) {
+function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
   const [deleteStatus, setDeleteStatus] = useState('')
   const [deletingKey, setDeletingKey] = useState('')
   const [adminTab, setAdminTab] = useState('overview')
@@ -769,6 +808,12 @@ function AdminPage({ data, onRefresh, token }) {
   const [userDetail, setUserDetail] = useState(null)
   const [workoutJson, setWorkoutJson] = useState('')
   const [routineJson, setRoutineJson] = useState('')
+  const [accessForm, setAccessForm] = useState({
+    membershipStatus: 'active',
+    membershipPlan: '',
+    membershipExpiresAt: '',
+    isAdmin: false,
+  })
   const [imageRows, setImageRows] = useState([])
   const [imageTotal, setImageTotal] = useState(0)
   const [imageHasMore, setImageHasMore] = useState(false)
@@ -839,6 +884,7 @@ function AdminPage({ data, onRefresh, token }) {
       setUserDetail(detail)
       setWorkoutJson(JSON.stringify(detail?.training?.userExcersises || { workout_plan: [] }, null, 2))
       setRoutineJson(detail?.routine?.routineTraining ? JSON.stringify(detail.routine.routineTraining, null, 2) : '')
+      setAccessForm(accessFormForUser(detail?.user))
       setAdminTab('users')
     } catch (error) {
       setDeleteStatus(error.message || 'Could not load user details.')
@@ -986,6 +1032,68 @@ function AdminPage({ data, onRefresh, token }) {
       await onRefresh()
     } catch (error) {
       setDeleteStatus(error.message || 'Could not delete user account.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  async function updateUserAccess(event) {
+    event.preventDefault()
+    if (!selectedUserID || !selectedUser) return
+
+    const isCurrentUser = selectedUserID === currentUserID
+    const roleChanged = accessForm.isAdmin !== Boolean(selectedUser.isAdmin)
+    const action = roleChanged ? (accessForm.isAdmin ? 'grant administrator access' : 'remove administrator access') : 'update account access'
+    const sessionWarning = isCurrentUser ? ' This will sign you out because the backend revokes sessions after access changes.' : ''
+    if (!window.confirm(`Are you sure you want to ${action} for ${selectedUser.email || 'this user'}?${sessionWarning}`)) return
+
+    setDeletingKey('user-access-save')
+    setDeleteStatus('')
+    try {
+      const body = {
+        membershipStatus: accessForm.membershipStatus,
+        membershipPlan: accessForm.membershipPlan.trim() || selectedUser.membershipPlan || undefined,
+        membershipExpiresAt: accessForm.membershipExpiresAt ? new Date(accessForm.membershipExpiresAt).toISOString() : undefined,
+        isAdmin: accessForm.isAdmin,
+      }
+      const updated = await api(`admin/users/${selectedUserID}/access`, {
+        method: 'PUT',
+        token,
+        body,
+      })
+      setUserDetail((current) => current ? { ...current, user: { ...current.user, ...updated } } : current)
+      setAccessForm(accessFormForUser({ ...selectedUser, ...updated }))
+
+      if (isCurrentUser) {
+        await onSignOut()
+        return
+      }
+
+      setDeleteStatus('User access saved and existing sessions revoked.')
+      await onRefresh()
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not update user access.')
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  async function revokeUserSessions() {
+    if (!selectedUserID || !selectedUser) return
+    const isCurrentUser = selectedUserID === currentUserID
+    if (!window.confirm(`Revoke every session for ${selectedUser.email || 'this user'}?${isCurrentUser ? ' You will be signed out.' : ''}`)) return
+
+    setDeletingKey('user-sessions-revoke')
+    setDeleteStatus('')
+    try {
+      await api(`admin/users/${selectedUserID}/revoke-sessions`, { method: 'POST', token })
+      if (isCurrentUser) {
+        await onSignOut()
+        return
+      }
+      setDeleteStatus('All user sessions revoked.')
+    } catch (error) {
+      setDeleteStatus(error.message || 'Could not revoke user sessions.')
     } finally {
       setDeletingKey('')
     }
@@ -1402,9 +1510,9 @@ function AdminPage({ data, onRefresh, token }) {
           </section>
 
           <section className="data-panel">
-            <PanelHeader icon={Trash2} title="Account control" subtitle={userDetail?.user?.email || 'Select a user'} />
+            <PanelHeader icon={ShieldCheck} title="Account access" subtitle={userDetail?.user?.email || 'Select a user'} />
             {userDetail ? (
-              <div className="form-stack">
+              <form className="form-stack" onSubmit={updateUserAccess}>
                 <Rows
                   empty="No user loaded."
                   rows={[
@@ -1415,13 +1523,55 @@ function AdminPage({ data, onRefresh, token }) {
                     },
                   ]}
                 />
+                <div className="form-grid two">
+                  <SelectField
+                    label="Membership status"
+                    value={accessForm.membershipStatus}
+                    onChange={(membershipStatus) => setAccessForm({ ...accessForm, membershipStatus })}
+                    options={['active', 'trial', 'expired', 'blocked', 'disabled', 'suspended', 'banned']}
+                  />
+                  <Field
+                    label="Membership plan"
+                    value={accessForm.membershipPlan}
+                    onChange={(membershipPlan) => setAccessForm({ ...accessForm, membershipPlan })}
+                    maxLength="80"
+                  />
+                </div>
+                <Field
+                  label="Membership expiration"
+                  type="datetime-local"
+                  value={accessForm.membershipExpiresAt}
+                  onChange={(membershipExpiresAt) => setAccessForm({ ...accessForm, membershipExpiresAt })}
+                />
+                <label className="toggle-row">
+                  <input
+                    checked={accessForm.isAdmin}
+                    onChange={(event) => setAccessForm({ ...accessForm, isAdmin: event.target.checked })}
+                    type="checkbox"
+                  />
+                  <span>Administrator access</span>
+                </label>
+                <p className="form-helper">Saving access changes revokes this user&apos;s existing sessions.</p>
+                <button className="primary-action wide" disabled={deletingKey === 'user-access-save'} type="submit">
+                  {deletingKey === 'user-access-save' ? <Loader2 className="spin" size={17} /> : <ShieldCheck size={17} />}
+                  Save account access
+                </button>
+                <button
+                  className="secondary-action danger-action wide"
+                  disabled={deletingKey === 'user-sessions-revoke'}
+                  onClick={revokeUserSessions}
+                  type="button"
+                >
+                  {deletingKey === 'user-sessions-revoke' ? <Loader2 className="spin" size={17} /> : <LogOut size={17} />}
+                  Revoke all sessions
+                </button>
                 <button className="secondary-action danger-action wide" disabled={userDetail.user.isAdmin || deletingKey === 'user-delete'} onClick={deleteSelectedUser} type="button">
                   {deletingKey === 'user-delete' ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
                   Delete user account
                 </button>
-              </div>
+              </form>
             ) : (
-              <p className="empty-state">Select a user before deleting an account.</p>
+              <p className="empty-state">Select a user to manage access, sessions, or account deletion.</p>
             )}
           </section>
         </>
@@ -2014,12 +2164,52 @@ async function api(path, { body, method = 'GET', timeout = 30000, token } = {}) 
     const data = text ? safeJson(text) : null
     if (!response.ok) {
       const message = typeof data === 'object' ? data.reason || data.message : data
-      throw new Error(message || `Request failed with ${response.status}`)
+      throw new ApiError(message || `Request failed with ${response.status}`, response.status, data)
     }
     return data
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('The request timed out. Please try again.')
+    throw error
   } finally {
     clearTimeout(timer)
   }
+}
+
+class ApiError extends Error {
+  constructor(message, status, data = null) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.data = data
+  }
+}
+
+function readStoredToken() {
+  const storedToken = localStorage.getItem(TOKEN_KEY) || ''
+  const expiresAt = localStorage.getItem(TOKEN_EXPIRES_KEY)
+  if (storedToken && expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(TOKEN_EXPIRES_KEY)
+    return ''
+  }
+  return storedToken
+}
+
+function accessFormForUser(user) {
+  return {
+    membershipStatus: user?.membershipStatus || 'active',
+    membershipPlan: user?.membershipPlan || '',
+    membershipExpiresAt: toDateTimeLocal(user?.membershipExpiresAt),
+    isAdmin: Boolean(user?.isAdmin),
+  }
+}
+
+function toDateTimeLocal(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
 }
 
 function apiUrl(path) {
