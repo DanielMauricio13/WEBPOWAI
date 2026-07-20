@@ -44,7 +44,7 @@ const registerDefaults = {
   weight: 180,
   weightUnit: 'lb',
   height: 0,
-  heightUnit: 'cm',
+  heightUnit: 'ft',
   heightFt: 5,
   heightIn: 10,
   goal: 'Build muscle',
@@ -407,6 +407,10 @@ function AdminRegisterForm({ onLogin }) {
 
   async function submit(event) {
     event.preventDefault()
+    if (form.password.length < 10 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password)) {
+      setStatus('Password must be 10-128 characters and include a letter and a number.')
+      return
+    }
     setSubmitting(true)
     setStatus('')
     try {
@@ -484,6 +488,10 @@ function RegisterForm({ setAuthMode }) {
 
   async function submit(event) {
     event.preventDefault()
+    if (form.password.length < 10 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password)) {
+      setStatus('Password must be 10-128 characters and include a letter and a number.')
+      return
+    }
     setSubmitting(true)
     setStatus('')
     try {
@@ -519,26 +527,26 @@ function RegisterForm({ setAuthMode }) {
         <Field label="Last name" value={form.lastName} onChange={(value) => update('lastName', value)} required />
       </div>
       <Field label="Email" type="email" value={form.email} onChange={(value) => update('email', value)} required />
-      <Field label="Password" type="password" value={form.password} onChange={(value) => update('password', value)} minLength="10" maxLength="128" required />
+      <Field label="Password (10+ characters, including a letter and number)" type="password" value={form.password} onChange={(value) => update('password', value)} minLength="10" maxLength="128" required />
       <div className="form-grid three">
-        <Field label="Age" type="number" value={form.age} onChange={(value) => update('age', value)} required />
+        <Field label="Age" type="number" value={form.age} onChange={(value) => update('age', value)} min="13" max="120" required />
         <SelectField label="Gender" value={form.gender} onChange={(value) => update('gender', value)} options={['Male', 'Female', 'Other']} />
         <SelectField label="Level" value={form.level} onChange={(value) => update('level', value)} options={['Beginner', 'Medium', 'Expert']} />
       </div>
       <div className="form-grid three">
-        <Field label="Weight" type="number" value={form.weight} onChange={(value) => update('weight', value)} required />
+        <Field label="Weight" type="number" value={form.weight} onChange={(value) => update('weight', value)} min="1" max="1500" step="any" required />
         <SelectField label="Weight unit" value={form.weightUnit} onChange={(value) => update('weightUnit', value)} options={['lb', 'kg']} />
         <SelectField label="Body type" value={form.bodyStructure} onChange={(value) => update('bodyStructure', value)} options={['Ectomorph', 'Mesomorph', 'Endomorph']} />
       </div>
       <div className="form-grid three">
-        <Field label="Height ft" type="number" value={form.heightFt} onChange={(value) => update('heightFt', value)} required />
-        <Field label="Height in" type="number" value={form.heightIn} onChange={(value) => update('heightIn', value)} required />
+        <Field label="Height ft" type="number" value={form.heightFt} onChange={(value) => update('heightFt', value)} min="1" max="9" required />
+        <Field label="Height in" type="number" value={form.heightIn} onChange={(value) => update('heightIn', value)} min="0" max="11" required />
         <SelectField label="Location" value={form.whereWork} onChange={(value) => update('whereWork', value)} options={['Gym', 'Home', 'Park']} />
       </div>
       <div className="form-grid three">
         <SelectField label="Goal" value={form.goal} onChange={(value) => update('goal', value)} options={['Build muscle', 'Lose weight', 'Improve endurance', 'Get stronger']} />
-        <Field label="Days/week" type="number" value={form.numDays} onChange={(value) => update('numDays', value)} required />
-        <Field label="Hours/session" value={form.numHours} onChange={(value) => update('numHours', value)} required />
+        <Field label="Days/week" type="number" value={form.numDays} onChange={(value) => update('numDays', value)} min="1" max="7" required />
+        <Field label="Hours/session" type="number" value={form.numHours} onChange={(value) => update('numHours', value)} min="0.25" max="8" step="0.25" required />
       </div>
       {status ? <p className={`form-status ${status.includes('created') ? 'success' : 'error'}`}>{status}</p> : null}
       <button className="primary-action wide" disabled={submitting} type="submit">
@@ -597,93 +605,168 @@ function PrivacySection() {
         icon={ShieldCheck}
         label="Privacy"
         title="PowAI Privacy Policy"
-        text="Last updated June 23, 2026. PowAI uses personal data to provide training, nutrition, progress, reminders, social features, account support, and app safety."
+        text="Last updated July 20, 2026. This policy explains how PowAI collects, uses, shares, retains, and deletes information across the PowAI mobile app, website, and supporting services."
       />
 
       <div className="privacy-grid">
         <article className="privacy-card large">
-          <h3>Data PowAI May Collect</h3>
+          <h3>Information PowAI May Collect</h3>
           <p>
-            Depending on the features you use, PowAI may collect account details, profile and
-            onboarding answers, workout plans, exercise logs, set weights, body weight history,
-            nutrition targets, food entries, barcode or food-photo analysis inputs, favorite foods,
-            meal ideas, alarm and schedule preferences, friend connections, shared workout activity,
-            challenge activity, support requests, notification tokens, and basic device or app data
-            needed to operate the service.
+            Depending on the features you choose, PowAI may collect your name, email address,
+            account identifiers, login and support information, age, gender, height, body weight and
+            weight history, fitness goal, experience level, workout location and schedule, workout
+            plans, exercises, sets, repetitions, lifted weights, workout duration, completion
+            percentage, approximate calories, nutrition targets and history, food entries, selected
+            food photos, barcode searches, favorite foods, alarms, day-planner items, focus settings,
+            friend and challenge activity, push notification token, and basic request or device data
+            required to secure and operate the service.
+          </p>
+        </article>
+
+        <article className="privacy-card large">
+          <h3>Apple Health, HealthKit, and Live Heart Rate</h3>
+          <p>
+            Apple Health access is optional and controlled by you. If you grant permission, PowAI may
+            read sleep duration, resting heart rate, heart-rate variability, steps, active energy,
+            recent HealthKit workouts, and live heart rate from compatible sources such as AirPods
+            Pro 3. During an active PowAI workout, the app may start a HealthKit workout session,
+            display current BPM in the workout screen and Live Activity, and save the completed
+            workout to Apple Health. Raw live heart-rate samples are not uploaded to PowAI servers or
+            sent to an AI provider. Health information saved in Apple Health remains subject to your
+            Apple Health permissions and controls. PowAI does not store HealthKit-derived information
+            in iCloud or use health or fitness information for advertising, marketing, cross-app
+            tracking, or unrelated data mining.
           </p>
         </article>
 
         <article className="privacy-card">
-          <h3>Health and Fitness</h3>
+          <h3>Today Coach</h3>
           <p>
-            Workout, weight, calorie, macro, and optional heart-rate-related information is used to
-            personalize plans, display progress, support workout sessions, and improve your fitness
-            experience. PowAI does not sell health or fitness data.
+            If you separately enable Apple Health sharing for Today Coach and request a plan, PowAI
+            creates an on-device daily summary that can include sleep minutes, resting heart rate,
+            heart-rate variability, steps, active energy, recent workout count and duration, and time
+            since the last HealthKit workout. That compact summary, together with relevant PowAI
+            workout, nutrition, body-weight, goal, and day-planner information, is sent through
+            PowAI's server to Google Gemini or, if the backup provider is needed, OpenAI. PowAI does
+            not intentionally store the submitted HealthKit summary in its workout-history database.
           </p>
         </article>
 
         <article className="privacy-card">
-          <h3>Food and Photos</h3>
+          <h3>Trainer Reviews</h3>
           <p>
-            Food text, serving details, barcode lookups, and food photos may be processed to estimate
-            calories, protein, carbohydrates, sugars, and meal details. Only submit photos you want
-            analyzed for nutrition.
+            Trainer feedback is generated only when you request it. For the review period you select
+            — 7 days, 14 days, 30 days, 60 days, or 90 days — PowAI may send your stated goal,
+            workouts, duration, completion percentage, approximate calories, exercise list, logged
+            set weights, body-weight history and trends, and nutrition targets and history to Google
+            Gemini or OpenAI as a backup. These records are treated as user-entered or estimated data,
+            and the resulting guidance is general fitness and wellness information, not medical
+            advice.
           </p>
         </article>
 
         <article className="privacy-card">
-          <h3>Social Features</h3>
+          <h3>Food, Nutrition, and Photos</h3>
           <p>
-            If you use friend, sharing, or challenge features, PowAI may process friend requests,
-            connections, shared items, challenge participation, and workout activity needed to show
-            those features.
+            Food text, serving details, barcode lookups, and food photos you select may be processed
+            to estimate calories, protein, carbohydrates, sugar, and meal details. Food and calorie
+            values are estimates and may be inaccurate. Only submit photos and descriptions you want
+            processed for nutrition features.
           </p>
         </article>
 
         <article className="privacy-card">
-          <h3>Reminders and Notifications</h3>
+          <h3>Social and Challenge Features</h3>
           <p>
-            Alarm settings, schedule preferences, recurrence details, reminder choices, and push
-            notification tokens may be used to send workout, alarm, recovery, or account-related
-            notifications.
+            If you use friend, sharing, streak, competition, or challenge features, PowAI processes
+            friend requests, connections, shared items, challenge participation, and relevant workout
+            activity so those features can be shown to you and the participating users.
           </p>
         </article>
 
         <article className="privacy-card">
-          <h3>Third-Party Services</h3>
+          <h3>Planning, Focus, and Notifications</h3>
           <p>
-            PowAI may use service providers for AI generation and analysis, email delivery, barcode
-            nutrition information, Apple platform services, push notifications, hosting, storage,
-            security, and app operations. These providers process data only as needed to support the
-            requested feature or operate the service.
+            Alarm settings, day-planner blocks, focus settings, recurrence details, calendar items you
+            choose to import, reminder choices, and push notification tokens are used to provide
+            alarms, planning, focus sessions, Live Activities, and workout or account notifications.
           </p>
         </article>
 
         <article className="privacy-card">
-          <h3>How Data Is Used</h3>
+          <h3>Website and Account Security</h3>
           <p>
-            Data is used for app functionality, personalization, account authentication, customer
-            support, safety, debugging, service reliability, and legal compliance. PowAI is not
-            designed to track users across other companies' apps or websites for advertising.
+            When you sign in on the PowAI website, an authentication token and its expiration time may
+            be stored in your browser's local storage to keep you signed in. PowAI also processes
+            request metadata, authentication events, support messages, and limited diagnostic or email
+            delivery records when needed for security, troubleshooting, and reliable operation.
           </p>
         </article>
 
         <article className="privacy-card">
-          <h3>Your Choices</h3>
+          <h3>Service Providers and Data Sharing</h3>
           <p>
-            You can update profile information in the app, choose which optional permissions to grant,
-            manage notifications in iOS settings, and request account deletion or support help through
-            the app or this website.
+            PowAI uses service providers only when needed to deliver a requested feature or operate the
+            service. These may include Google Gemini and OpenAI for AI generation and analysis, Resend
+            for service email delivery, Open Food Facts for barcode nutrition information, Apple
+            platform services, and infrastructure providers for hosting, databases, security, and
+            storage. PowAI requires service providers to protect information consistently with this
+            policy and applicable law. PowAI does not sell personal, health, or fitness information.
+          </p>
+        </article>
+
+        <article className="privacy-card">
+          <h3>How Information Is Used</h3>
+          <p>
+            Information is used for app functionality, personalized workouts and coaching, progress
+            tracking, nutrition estimates, account authentication, social features, planning,
+            notifications, customer support, fraud prevention, debugging, service reliability, and
+            legal compliance. PowAI is not designed to track you across other companies' apps or
+            websites for advertising.
           </p>
         </article>
 
         <article className="privacy-card">
           <h3>Retention and Deletion</h3>
           <p>
-            PowAI keeps account data while your account is active or as needed to provide the service.
-            When you delete your account, PowAI deletes account-related app data from active service
-            systems, except where limited retention is required for security, troubleshooting, legal,
-            or backup purposes.
+            PowAI workout-completion history is retained for up to 90 days, and you can delete an
+            individual workout sooner from Trainer. Other account records are generally kept while
+            your account is active or as needed to provide the feature. You can delete your PowAI
+            account in the app; account-related data is then deleted from active PowAI systems, except
+            for limited records retained when reasonably necessary for security, backups, fraud
+            prevention, legal obligations, or dispute resolution. Deleting your PowAI account does not
+            delete workouts already saved to Apple Health; manage those records in Apple Health.
+          </p>
+        </article>
+
+        <article className="privacy-card">
+          <h3>Your Permissions and Choices</h3>
+          <p>
+            You may decline optional Apple Health, calendar, camera, photo, notification, or other
+            permissions and continue using features that do not require them. You can change Apple
+            Health permissions in the Health app or iOS Settings, stop sending Health summaries from
+            the Today Coach card, edit profile information, delete workout records, manage
+            notifications, sign out to remove the website's saved session token, or delete your PowAI
+            account from app settings.
+          </p>
+        </article>
+
+        <article className="privacy-card">
+          <h3>Security, Children, and Policy Changes</h3>
+          <p>
+            PowAI uses reasonable technical and organizational measures intended to protect personal
+            information, but no network or storage system can be guaranteed completely secure. PowAI
+            is not directed to children under 13. Material changes to this policy will be reflected by
+            updating the date above and, when appropriate, providing an additional notice.
+          </p>
+        </article>
+
+        <article className="privacy-card">
+          <h3>Contact and Privacy Requests</h3>
+          <p>
+            For privacy questions, access or correction requests, deletion help, or consent concerns,
+            contact PowAI through the <a href="#support">support form</a>. We may need to verify your
+            identity before completing a request involving account information.
           </p>
         </article>
       </div>
@@ -691,10 +774,11 @@ function PrivacySection() {
       <div className="privacy-summary">
         <h3>App Privacy Summary</h3>
         <div className="privacy-list">
-          <span><strong>Data linked to you:</strong> contact info, account identifiers, profile details, fitness and workout data, nutrition and food data, body weight, social activity, schedule/reminder data, support messages, and notification/device identifiers.</span>
-          <span><strong>Possible sensitive data:</strong> health and fitness information, food photos or user-provided images, and optional heart-rate-related workout information when enabled.</span>
-          <span><strong>Primary purposes:</strong> app functionality, personalization, account management, notifications, customer support, safety, and service improvement.</span>
-          <span><strong>Tracking:</strong> PowAI does not sell personal data and is not designed to track users across third-party apps or websites for advertising.</span>
+          <span><strong>Data linked to you:</strong> contact information, account identifiers, profile details, workout and fitness history, nutrition records, body-weight history, social activity, planning data, support messages, and notification or device identifiers.</span>
+          <span><strong>Apple Health:</strong> access is optional; raw live heart-rate samples remain outside PowAI's servers, while an opt-in compact daily summary may be used for Today Coach.</span>
+          <span><strong>AI processing:</strong> Google Gemini or OpenAI receives relevant data only when needed for the AI feature you request, including Today Coach and Trainer feedback.</span>
+          <span><strong>Primary purposes:</strong> app functionality, personalization, account management, notifications, customer support, security, and service reliability.</span>
+          <span><strong>Tracking and advertising:</strong> PowAI does not sell personal data or use HealthKit, health, or fitness data for advertising or cross-app tracking.</span>
         </div>
       </div>
     </section>
