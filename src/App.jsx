@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import QRCode from 'react-qr-code'
 import {
   Activity,
   ArrowRight,
@@ -21,6 +22,7 @@ import {
   RefreshCcw,
   Scale,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   TimerReset,
   Trash2,
@@ -31,6 +33,7 @@ import {
 import './index.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://powai-ea13190d89b9.herokuapp.com/'
+const APP_STORE_URL = 'https://apps.apple.com/us/app/powai-fitness/id6773099234'
 const TOKEN_KEY = 'powai.web.jwt'
 const TOKEN_EXPIRES_KEY = 'powai.web.jwt.expiresAt'
 
@@ -267,7 +270,27 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
               <ArrowRight size={18} />
             </a>
             <a className="secondary-action" href="#training">Explore features</a>
+            <a className="secondary-action" href={APP_STORE_URL} target="_blank" rel="noreferrer">
+              <Smartphone size={18} />
+              Get the iOS app
+            </a>
           </div>
+          <a
+            className="app-store-card"
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open PowAI Fitness in the App Store"
+          >
+            <span className="app-store-qr" aria-hidden="true">
+              <QRCode value={APP_STORE_URL} size={124} level="M" bgColor="#ffffff" fgColor="#0b0d11" />
+            </span>
+            <span className="app-store-copy">
+              <small>Scan with your phone</small>
+              <strong>Download PowAI Fitness</strong>
+              <span>Available on the App Store</span>
+            </span>
+          </a>
         </div>
 
         <div className="hero-device" aria-label="PowAI product preview">
@@ -605,7 +628,7 @@ function PrivacySection() {
         icon={ShieldCheck}
         label="Privacy"
         title="PowAI Privacy Policy"
-        text="Last updated July 20, 2026. This policy explains how PowAI collects, uses, shares, retains, and deletes information across the PowAI mobile app, website, and supporting services."
+        text="Last updated July 21, 2026. This policy explains how PowAI collects, uses, shares, retains, and deletes information across the PowAI mobile app, website, and supporting services."
       />
 
       <div className="privacy-grid">
@@ -647,8 +670,11 @@ function PrivacySection() {
             heart-rate variability, steps, active energy, recent workout count and duration, and time
             since the last HealthKit workout. That compact summary, together with relevant PowAI
             workout, nutrition, body-weight, goal, and day-planner information, is sent through
-            PowAI's server to Google Gemini or, if the backup provider is needed, OpenAI. PowAI does
-            not intentionally store the submitted HealthKit summary in its workout-history database.
+            PowAI's server to Google Gemini or, if the backup provider is needed, OpenAI. Nutrition
+            context may include the names, times, estimated macros, and meal-or-food classification of
+            entries logged during the preceding 48 hours so Today Coach can suggest an optional meal or
+            snack window and a broad meal type. PowAI does not intentionally store the submitted
+            HealthKit summary in its workout-history database.
           </p>
         </article>
 
@@ -671,7 +697,9 @@ function PrivacySection() {
             Food text, serving details, barcode lookups, and food photos you select may be processed
             to estimate calories, protein, carbohydrates, sugar, and meal details. Food and calorie
             values are estimates and may be inaccurate. Only submit photos and descriptions you want
-            processed for nutrition features.
+            processed for nutrition features. PowAI keeps a rolling timestamped history of foods and
+            meals logged during the previous 48 hours. The app uploads this history with the scheduled
+            daily nutrition closeout so it can support recent-intake and meal-timing guidance.
           </p>
         </article>
 
@@ -729,9 +757,13 @@ function PrivacySection() {
         <article className="privacy-card">
           <h3>Retention and Deletion</h3>
           <p>
-            PowAI workout-completion history is retained for up to 90 days, and you can delete an
-            individual workout sooner from Trainer. Other account records are generally kept while
-            your account is active or as needed to provide the feature. You can delete your PowAI
+            PowAI Trainer history—including workout completions, logged lifting weights, body-weight
+            entries, and daily nutrition summaries—is retained for up to 90 days, and you can delete
+            an individual workout sooner from Trainer. Expired Trainer records are removed during
+            Trainer history maintenance. Timestamped food and meal history used for Today Coach is
+            retained for up to 48 hours; older entries are removed during nutrition closeout or Today
+            Coach history maintenance. Other account records are generally kept while your
+            account is active or as needed to provide the feature. You can delete your PowAI
             account in the app; account-related data is then deleted from active PowAI systems, except
             for limited records retained when reasonably necessary for security, backups, fraud
             prevention, legal obligations, or dispute resolution. Deleting your PowAI account does not
@@ -924,6 +956,8 @@ function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
   const selectedRoutinePlan = parseTrainingJSON(routineJson)
   const selectedWorkoutDays = selectedWorkoutPlan.workout_plan || []
   const selectedRoutineDays = selectedRoutinePlan.workout_plan || []
+  const workoutHistory = Array.isArray(userDetail?.history?.workouts) ? userDetail.history.workouts : []
+  const foodHistory = Array.isArray(userDetail?.history?.foodLogs) ? userDetail.history.foodLogs : []
 
   useEffect(() => {
     if (data && adminTab === 'exercises' && !imageRows.length && !imageLoading) {
@@ -1504,9 +1538,45 @@ function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
                 <InfoItem label="Workout exercises" value={selectedWorkoutDays.reduce((sum, day) => sum + (Array.isArray(day.exercises) ? day.exercises.length : 0), 0)} />
                 <InfoItem label="Routine days" value={selectedRoutineDays.length} />
                 <InfoItem label="Routine exercises" value={selectedRoutineDays.reduce((sum, day) => sum + (Array.isArray(day.exercises) ? day.exercises.length : 0), 0)} />
+                <InfoItem label="Completed workouts" value={workoutHistory.length} />
+                <InfoItem label="Recent food logs" value={foodHistory.length} />
               </div>
             ) : (
               <p className="empty-state">Select a user to see workout and routine totals.</p>
+            )}
+          </section>
+
+          <section className="data-panel">
+            <PanelHeader
+              icon={Dumbbell}
+              title="Workout history"
+              subtitle={selectedUser ? `${workoutHistory.length} workouts · up to ${userDetail?.history?.workoutRetentionDays || 90} days` : 'Select a user'}
+            />
+            {selectedUser ? (
+              <AdminWorkoutHistory workouts={workoutHistory} />
+            ) : (
+              <p className="empty-state">Select a user to view their completed workouts.</p>
+            )}
+          </section>
+
+          <section className="data-panel">
+            <PanelHeader
+              icon={Utensils}
+              title="Food history"
+              subtitle={selectedUser ? `${foodHistory.length} entries · last ${userDetail?.history?.foodRetentionHours || 48} hours` : 'Select a user'}
+            />
+            {selectedUser ? (
+              <Rows
+                empty="No retained food or meal entries were returned for this user."
+                rows={foodHistory.map((entry) => ({
+                  title: entry.name || 'Food entry',
+                  rawTitle: true,
+                  meta: `${formatDateTime(entry.loggedAt)} · ${entry.source || 'food'} · Protein ${entry.protein || 0}g · Carbs ${entry.carbs || 0}g · Sugars ${entry.sugars || 0}g`,
+                  value: `${entry.calories || 0} cal`,
+                }))}
+              />
+            ) : (
+              <p className="empty-state">Select a user to view their recent food and meal logs.</p>
             )}
           </section>
 
@@ -1802,6 +1872,61 @@ function AdminRows({ empty, rows }) {
           </button>
         </div>
       ))}
+    </div>
+  )
+}
+
+function AdminWorkoutHistory({ workouts }) {
+  if (!workouts.length) {
+    return <p className="empty-state">No workouts were completed during the retained history window.</p>
+  }
+
+  return (
+    <div className="admin-history-list">
+      {workouts.map((workout, index) => {
+        const exercises = Array.isArray(workout.exercises) ? workout.exercises : []
+        return (
+          <details className="admin-history-card" key={workout.id || workout.clientWorkoutID || `${workout.completedAt}-${index}`}>
+            <summary>
+              <div>
+                <strong>{workout.title || 'Workout'}</strong>
+                <small>{formatDateTime(workout.completedAt)} · {workout.muscleGroup || workout.workoutType || 'Training'}</small>
+              </div>
+              <b>{workout.completionPercent ?? 0}% · {workout.calories || 0} cal</b>
+            </summary>
+            <div className="admin-history-body">
+              <div className="admin-info-grid">
+                <InfoItem label="Completed day" value={workout.completedDate} />
+                <InfoItem label="Duration" value={formatDuration(workout.durationSeconds)} />
+                <InfoItem label="Type" value={workout.workoutType} />
+                <InfoItem label="Muscle group" value={workout.muscleGroup} />
+                <InfoItem label="Challenge" value={workout.challengeID ? `Day ${workout.challengeDay || '--'} · ${workout.challengeID}` : 'No'} />
+                <InfoItem label="Client workout ID" value={workout.clientWorkoutID} />
+              </div>
+              <div className="admin-history-exercises">
+                {exercises.length ? exercises.map((exercise, exerciseIndex) => {
+                  const loggedSets = Array.isArray(exercise.loggedSets) ? exercise.loggedSets : []
+                  return (
+                    <div className="admin-history-exercise" key={`${exercise.name}-${exerciseIndex}`}>
+                      <strong>{exercise.name || 'Exercise'}</strong>
+                      <small>{exercise.sets || 0} sets · {exercise.reps || '--'} reps · {exercise.caloriesBurned || 0} cal</small>
+                      {loggedSets.length ? (
+                        <div className="admin-set-list">
+                          {loggedSets.map((set, setIndex) => (
+                            <span key={`${set.setNumber}-${setIndex}`}>
+                              Set {set.setNumber}: {set.reps} reps × {set.weight} · {set.completed ? 'completed' : 'incomplete'} · {formatDateTime(set.date)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                }) : <p className="empty-state">No exercise details were saved for this workout.</p>}
+              </div>
+            </div>
+          </details>
+        )
+      })}
     </div>
   )
 }
@@ -2135,7 +2260,7 @@ function Rows({ empty, rows }) {
       {rows.map((row, index) => (
         <div className="history-row" key={`${row.title}-${index}`}>
           <div>
-            <strong>{formatDate(row.title)}</strong>
+            <strong>{row.rawTitle ? row.title : formatDate(row.title)}</strong>
             <small>{row.meta}</small>
           </div>
           <b>{row.value}</b>
@@ -2353,6 +2478,27 @@ function formatDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
+}
+
+function formatDateTime(value) {
+  if (!value) return 'Unknown time'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return ''
+  const totalMinutes = Math.round(seconds / 60)
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return hours ? `${hours}h ${minutes}m` : `${minutes}m`
 }
 
 function pageTitle(page) {
