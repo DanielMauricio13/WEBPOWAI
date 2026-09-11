@@ -240,9 +240,9 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
   return (
     <main className="site">
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="PowAI home">
-          <img src="/powai-app-icon.png" alt="" />
-          <span>PowAI</span>
+        <a className="brand" href="#top" aria-label="Nuvella home">
+          <img src="/nuvella-app-icon.png" alt="" />
+          <span>Nuvella</span>
         </a>
         <nav className="top-nav" aria-label="Main navigation">
           <a href="#training">Training</a>
@@ -252,14 +252,14 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
         </nav>
         <a className="header-cta" href="#access">
           <LockKeyhole size={17} />
-          Try PowAI
+          Try Nuvella
         </a>
       </header>
 
       <section className="hero-section" id="top" aria-labelledby="hero-title">
         <div className="hero-copy">
           <p className="eyebrow">AI fitness companion for iOS and web</p>
-          <h1 id="hero-title">PowAI</h1>
+          <h1 id="hero-title">Nuvella</h1>
           <p>
             Personalized training plans, nutrition targets, lift progress, body weight trends,
             smart alarms, and recovery tools shaped around your fitness goals.
@@ -280,20 +280,20 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
             href={APP_STORE_URL}
             target="_blank"
             rel="noreferrer"
-            aria-label="Open PowAI Fitness in the App Store"
+            aria-label="Open Nuvella Fitness in the App Store"
           >
             <span className="app-store-qr" aria-hidden="true">
               <QRCode value={APP_STORE_URL} size={124} level="M" bgColor="#ffffff" fgColor="#0b0d11" />
             </span>
             <span className="app-store-copy">
               <small>Scan with your phone</small>
-              <strong>Download PowAI Fitness</strong>
+              <strong>Download Nuvella Fitness</strong>
               <span>Available on the App Store</span>
             </span>
           </a>
         </div>
 
-        <div className="hero-device" aria-label="PowAI product preview">
+        <div className="hero-device" aria-label="Nuvella product preview">
           <div className="phone-frame">
             <div className="phone-status">
               <span>9:41</span>
@@ -329,10 +329,10 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
           icon={Dumbbell}
           label="Training"
           title="Workout plans built around your real routine"
-          text="PowAI uses your goal, body structure, training location, experience, available days, and session length to shape a plan that feels personal."
+          text="Nuvella uses your goal, body structure, training location, experience, available days, and session length to shape a plan that feels personal."
         />
         <div className="feature-grid">
-          <FeatureCard icon={Sparkles} title="AI generated plans" text="Create a profile and PowAI turns your goals, schedule, level, and location into a personal training plan." />
+          <FeatureCard icon={Sparkles} title="AI generated plans" text="Create a profile and Nuvella turns your goals, schedule, level, and location into a personal training plan." />
           <FeatureCard icon={TimerReset} title="Session-aware volume" text="Plans are presented by day with sets, reps, exercise names, and calorie estimates." />
           <FeatureCard icon={BellRing} title="Alarm-first lifestyle" text="The site includes the product story around alarms and recovery without pretending those iOS-only features run in a browser." />
         </div>
@@ -344,7 +344,7 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
             icon={Utensils}
             label="Nutrition"
             title="Macros, meals, and progress in one account"
-            text="PowAI brings your plan, macro targets, body weight, lift history, and nutrition progress into one clear account experience."
+            text="Nuvella brings your plan, macro targets, body weight, lift history, and nutrition progress into one clear account experience."
           />
           <div className="check-list">
             <span><CheckCircle2 size={18} /> Smart food estimates for quick macro logging</span>
@@ -353,7 +353,7 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
           </div>
         </div>
         <div className="nutrition-visual">
-          <img src="/body-type.jpeg" alt="PowAI body type onboarding visual" />
+          <img src="/body-type.jpeg" alt="Nuvella body type onboarding visual" />
           <div className="visual-caption">
             <strong>Onboarding context</strong>
             <span>Body type, goal, location, level, and schedule shape each plan.</span>
@@ -366,8 +366,8 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
           <SectionTitle
             icon={LockKeyhole}
             label="Try it"
-            title="Create your PowAI profile"
-            text="Log in with an existing PowAI account or create a trial profile to generate your first plan."
+            title="Create your Nuvella profile"
+            text="Log in with an existing Nuvella account or create a trial profile to generate your first plan."
           />
           {notice ? <p className="notice">{notice}</p> : null}
         </div>
@@ -396,13 +396,13 @@ function PublicSite({ authMode, setAuthMode, notice, onLogin }) {
           icon={LifeBuoy}
           label="Support"
           title="Questions, feedback, or account help"
-          text="Send a note and the PowAI team can follow up with you."
+          text="Send a note and the Nuvella team can follow up with you."
         />
         <SupportForm status={supportStatus} setStatus={setSupportStatus} />
       </section>
 
       <footer className="site-footer">
-        <span>PowAI for focused training</span>
+        <span>Nuvella for focused training</span>
         <a href="#privacy">Privacy Policy</a>
       </footer>
     </main>
@@ -420,7 +420,7 @@ function AdminRegisterForm({ onLogin }) {
     setStatus('')
     try {
       await api('admin/request-code', { method: 'POST', body: { email: form.email } })
-      setStatus('Verification code sent to PowAI support.')
+      setStatus('Verification code sent to Nuvella support.')
     } catch (error) {
       setStatus(error.message || 'Could not send verification code.')
     } finally {
@@ -627,15 +627,15 @@ function PrivacySection() {
       <SectionTitle
         icon={ShieldCheck}
         label="Privacy"
-        title="PowAI Privacy Policy"
-        text="Last updated July 21, 2026. This policy explains how PowAI collects, uses, shares, retains, and deletes information across the PowAI mobile app, website, and supporting services."
+        title="Nuvella Privacy Policy"
+        text="Last updated July 21, 2026. This policy explains how Nuvella collects, uses, shares, retains, and deletes information across the Nuvella mobile app, website, and supporting services."
       />
 
       <div className="privacy-grid">
         <article className="privacy-card large">
-          <h3>Information PowAI May Collect</h3>
+          <h3>Information Nuvella May Collect</h3>
           <p>
-            Depending on the features you choose, PowAI may collect your name, email address,
+            Depending on the features you choose, Nuvella may collect your name, email address,
             account identifiers, login and support information, age, gender, height, body weight and
             weight history, fitness goal, experience level, workout location and schedule, workout
             plans, exercises, sets, repetitions, lifted weights, workout duration, completion
@@ -649,14 +649,14 @@ function PrivacySection() {
         <article className="privacy-card large">
           <h3>Apple Health, HealthKit, and Live Heart Rate</h3>
           <p>
-            Apple Health access is optional and controlled by you. If you grant permission, PowAI may
+            Apple Health access is optional and controlled by you. If you grant permission, Nuvella may
             read sleep duration, resting heart rate, heart-rate variability, steps, active energy,
             recent HealthKit workouts, and live heart rate from compatible sources such as AirPods
-            Pro 3. During an active PowAI workout, the app may start a HealthKit workout session,
+            Pro 3. During an active Nuvella workout, the app may start a HealthKit workout session,
             display current BPM in the workout screen and Live Activity, and save the completed
-            workout to Apple Health. Raw live heart-rate samples are not uploaded to PowAI servers or
+            workout to Apple Health. Raw live heart-rate samples are not uploaded to Nuvella servers or
             sent to an AI provider. Health information saved in Apple Health remains subject to your
-            Apple Health permissions and controls. PowAI does not store HealthKit-derived information
+            Apple Health permissions and controls. Nuvella does not store HealthKit-derived information
             in iCloud or use health or fitness information for advertising, marketing, cross-app
             tracking, or unrelated data mining.
           </p>
@@ -665,15 +665,15 @@ function PrivacySection() {
         <article className="privacy-card">
           <h3>Today Coach</h3>
           <p>
-            If you separately enable Apple Health sharing for Today Coach and request a plan, PowAI
+            If you separately enable Apple Health sharing for Today Coach and request a plan, Nuvella
             creates an on-device daily summary that can include sleep minutes, resting heart rate,
             heart-rate variability, steps, active energy, recent workout count and duration, and time
-            since the last HealthKit workout. That compact summary, together with relevant PowAI
+            since the last HealthKit workout. That compact summary, together with relevant Nuvella
             workout, nutrition, body-weight, goal, and day-planner information, is sent through
-            PowAI's server to Google Gemini or, if the backup provider is needed, OpenAI. Nutrition
+            Nuvella's server to Google Gemini or, if the backup provider is needed, OpenAI. Nutrition
             context may include the names, times, estimated macros, and meal-or-food classification of
             entries logged during the preceding 48 hours so Today Coach can suggest an optional meal or
-            snack window and a broad meal type. PowAI does not intentionally store the submitted
+            snack window and a broad meal type. Nuvella does not intentionally store the submitted
             HealthKit summary in its workout-history database.
           </p>
         </article>
@@ -682,7 +682,7 @@ function PrivacySection() {
           <h3>Trainer Reviews</h3>
           <p>
             Trainer feedback is generated only when you request it. For the review period you select
-            — 7 days, 14 days, 30 days, 60 days, or 90 days — PowAI may send your stated goal,
+            — 7 days, 14 days, 30 days, 60 days, or 90 days — Nuvella may send your stated goal,
             workouts, duration, completion percentage, approximate calories, exercise list, logged
             set weights, body-weight history and trends, and nutrition targets and history to Google
             Gemini or OpenAI as a backup. These records are treated as user-entered or estimated data,
@@ -697,7 +697,7 @@ function PrivacySection() {
             Food text, serving details, barcode lookups, and food photos you select may be processed
             to estimate calories, protein, carbohydrates, sugar, and meal details. Food and calorie
             values are estimates and may be inaccurate. Only submit photos and descriptions you want
-            processed for nutrition features. PowAI keeps a rolling timestamped history of foods and
+            processed for nutrition features. Nuvella keeps a rolling timestamped history of foods and
             meals logged during the previous 48 hours. The app uploads this history with the scheduled
             daily nutrition closeout so it can support recent-intake and meal-timing guidance.
           </p>
@@ -706,7 +706,7 @@ function PrivacySection() {
         <article className="privacy-card">
           <h3>Social and Challenge Features</h3>
           <p>
-            If you use friend, sharing, streak, competition, or challenge features, PowAI processes
+            If you use friend, sharing, streak, competition, or challenge features, Nuvella processes
             friend requests, connections, shared items, challenge participation, and relevant workout
             activity so those features can be shown to you and the participating users.
           </p>
@@ -724,8 +724,8 @@ function PrivacySection() {
         <article className="privacy-card">
           <h3>Website and Account Security</h3>
           <p>
-            When you sign in on the PowAI website, an authentication token and its expiration time may
-            be stored in your browser's local storage to keep you signed in. PowAI also processes
+            When you sign in on the Nuvella website, an authentication token and its expiration time may
+            be stored in your browser's local storage to keep you signed in. Nuvella also processes
             request metadata, authentication events, support messages, and limited diagnostic or email
             delivery records when needed for security, troubleshooting, and reliable operation.
           </p>
@@ -734,12 +734,12 @@ function PrivacySection() {
         <article className="privacy-card">
           <h3>Service Providers and Data Sharing</h3>
           <p>
-            PowAI uses service providers only when needed to deliver a requested feature or operate the
+            Nuvella uses service providers only when needed to deliver a requested feature or operate the
             service. These may include Google Gemini and OpenAI for AI generation and analysis, Resend
             for service email delivery, Open Food Facts for barcode nutrition information, Apple
             platform services, and infrastructure providers for hosting, databases, security, and
-            storage. PowAI requires service providers to protect information consistently with this
-            policy and applicable law. PowAI does not sell personal, health, or fitness information.
+            storage. Nuvella requires service providers to protect information consistently with this
+            policy and applicable law. Nuvella does not sell personal, health, or fitness information.
           </p>
         </article>
 
@@ -749,7 +749,7 @@ function PrivacySection() {
             Information is used for app functionality, personalized workouts and coaching, progress
             tracking, nutrition estimates, account authentication, social features, planning,
             notifications, customer support, fraud prevention, debugging, service reliability, and
-            legal compliance. PowAI is not designed to track you across other companies' apps or
+            legal compliance. Nuvella is not designed to track you across other companies' apps or
             websites for advertising.
           </p>
         </article>
@@ -757,16 +757,16 @@ function PrivacySection() {
         <article className="privacy-card">
           <h3>Retention and Deletion</h3>
           <p>
-            PowAI Trainer history—including workout completions, logged lifting weights, body-weight
+            Nuvella Trainer history—including workout completions, logged lifting weights, body-weight
             entries, and daily nutrition summaries—is retained for up to 90 days, and you can delete
             an individual workout sooner from Trainer. Expired Trainer records are removed during
             Trainer history maintenance. Timestamped food and meal history used for Today Coach is
             retained for up to 48 hours; older entries are removed during nutrition closeout or Today
             Coach history maintenance. Other account records are generally kept while your
-            account is active or as needed to provide the feature. You can delete your PowAI
-            account in the app; account-related data is then deleted from active PowAI systems, except
+            account is active or as needed to provide the feature. You can delete your Nuvella
+            account in the app; account-related data is then deleted from active Nuvella systems, except
             for limited records retained when reasonably necessary for security, backups, fraud
-            prevention, legal obligations, or dispute resolution. Deleting your PowAI account does not
+            prevention, legal obligations, or dispute resolution. Deleting your Nuvella account does not
             delete workouts already saved to Apple Health; manage those records in Apple Health.
           </p>
         </article>
@@ -778,7 +778,7 @@ function PrivacySection() {
             permissions and continue using features that do not require them. You can change Apple
             Health permissions in the Health app or iOS Settings, stop sending Health summaries from
             the Today Coach card, edit profile information, delete workout records, manage
-            notifications, sign out to remove the website's saved session token, or delete your PowAI
+            notifications, sign out to remove the website's saved session token, or delete your Nuvella
             account from app settings.
           </p>
         </article>
@@ -786,8 +786,8 @@ function PrivacySection() {
         <article className="privacy-card">
           <h3>Security, Children, and Policy Changes</h3>
           <p>
-            PowAI uses reasonable technical and organizational measures intended to protect personal
-            information, but no network or storage system can be guaranteed completely secure. PowAI
+            Nuvella uses reasonable technical and organizational measures intended to protect personal
+            information, but no network or storage system can be guaranteed completely secure. Nuvella
             is not directed to children under 13. Material changes to this policy will be reflected by
             updating the date above and, when appropriate, providing an additional notice.
           </p>
@@ -797,7 +797,7 @@ function PrivacySection() {
           <h3>Contact and Privacy Requests</h3>
           <p>
             For privacy questions, access or correction requests, deletion help, or consent concerns,
-            contact PowAI through the <a href="#support">support form</a>. We may need to verify your
+            contact Nuvella through the <a href="#support">support form</a>. We may need to verify your
             identity before completing a request involving account information.
           </p>
         </article>
@@ -807,10 +807,10 @@ function PrivacySection() {
         <h3>App Privacy Summary</h3>
         <div className="privacy-list">
           <span><strong>Data linked to you:</strong> contact information, account identifiers, profile details, workout and fitness history, nutrition records, body-weight history, social activity, planning data, support messages, and notification or device identifiers.</span>
-          <span><strong>Apple Health:</strong> access is optional; raw live heart-rate samples remain outside PowAI's servers, while an opt-in compact daily summary may be used for Today Coach.</span>
+          <span><strong>Apple Health:</strong> access is optional; raw live heart-rate samples remain outside Nuvella's servers, while an opt-in compact daily summary may be used for Today Coach.</span>
           <span><strong>AI processing:</strong> Google Gemini or OpenAI receives relevant data only when needed for the AI feature you request, including Today Coach and Trainer feedback.</span>
           <span><strong>Primary purposes:</strong> app functionality, personalization, account management, notifications, customer support, security, and service reliability.</span>
-          <span><strong>Tracking and advertising:</strong> PowAI does not sell personal data or use HealthKit, health, or fitness data for advertising or cross-app tracking.</span>
+          <span><strong>Tracking and advertising:</strong> Nuvella does not sell personal data or use HealthKit, health, or fitness data for advertising or cross-app tracking.</span>
         </div>
       </div>
     </section>
@@ -845,10 +845,10 @@ function AuthenticatedApp({
     <main className="app-shell">
       <aside className={`sidebar ${drawerOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <img src="/powai-app-icon.png" alt="" />
+          <img src="/nuvella-app-icon.png" alt="" />
           <div>
-            <strong>PowAI</strong>
-            <span>{user?.email || 'PowAI account'}</span>
+            <strong>Nuvella</strong>
+            <span>{user?.email || 'Nuvella account'}</span>
           </div>
           <button className="icon-button close-drawer" onClick={() => setDrawerOpen(false)} type="button" aria-label="Close menu">
             <X size={18} />
@@ -1337,7 +1337,7 @@ function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
       <section className="summary-panel wide-panel">
         <div>
           <p className="eyebrow">Admin console</p>
-          <h3>PowAI operations</h3>
+          <h3>Nuvella operations</h3>
           <p>Users, support messages, crash reports, and outbound email activity from the backend.</p>
         </div>
         <div className="hero-metrics">
@@ -1383,7 +1383,7 @@ function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
           empty="No users returned yet."
           rows={users.slice(0, 12).map((entry) => ({
             title: entry.email || 'No email',
-            meta: `${entry.firstName || 'PowAI'} ${entry.lastName || 'user'} · ${entry.membershipStatus || 'unknown'}`,
+            meta: `${entry.firstName || 'Nuvella'} ${entry.lastName || 'user'} · ${entry.membershipStatus || 'unknown'}`,
             value: entry.isAdmin ? 'Admin' : entry.membershipPlan || 'User',
           }))}
         />
@@ -1464,7 +1464,7 @@ function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
                 <div className="history-row admin-row" key={entry.id || entry.email}>
                   <div>
                     <strong>{entry.email || 'No email'}</strong>
-                    <small>{entry.firstName || 'PowAI'} {entry.lastName || 'user'} · {entry.membershipStatus || 'unknown'}</small>
+                    <small>{entry.firstName || 'Nuvella'} {entry.lastName || 'user'} · {entry.membershipStatus || 'unknown'}</small>
                   </div>
                   <b>{entry.isAdmin ? 'Admin' : entry.membershipPlan || 'User'}</b>
                   <button
@@ -1487,7 +1487,7 @@ function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
               <div className="admin-detail-stack">
                 <div className="admin-profile-hero">
                   <div>
-                    <strong>{selectedUser.firstName || 'PowAI'} {selectedUser.lastName || 'user'}</strong>
+                    <strong>{selectedUser.firstName || 'Nuvella'} {selectedUser.lastName || 'user'}</strong>
                     <span>{selectedUser.email || 'No email'}</span>
                   </div>
                   <b>{selectedUser.isAdmin ? 'Admin' : selectedUser.membershipStatus || 'User'}</b>
@@ -1672,7 +1672,7 @@ function AdminPage({ currentUserID, data, onRefresh, onSignOut, token }) {
                   rows={[
                     {
                       title: userDetail.user.email || 'No email',
-                      meta: `${userDetail.user.firstName || 'PowAI'} ${userDetail.user.lastName || 'user'} · ${userDetail.user.membershipStatus || 'unknown'}`,
+                      meta: `${userDetail.user.firstName || 'Nuvella'} ${userDetail.user.lastName || 'user'} · ${userDetail.user.membershipStatus || 'unknown'}`,
                       value: userDetail.user.isAdmin ? 'Admin' : 'User',
                     },
                   ]}
@@ -2116,7 +2116,7 @@ function Dashboard({ liftHistory, nutrition, plan, user, weights }) {
       <section className="summary-panel wide-panel">
         <div>
           <p className="eyebrow">Welcome back</p>
-          <h3>{user ? `${user.firstName} ${user.lastName}` : 'PowAI athlete'}</h3>
+          <h3>{user ? `${user.firstName} ${user.lastName}` : 'Nuvella athlete'}</h3>
           <p>
             {user?.goal || 'Training'} plan, {user?.numDays || plan.length || 4} days per week,
             {user?.numHours ? ` ${user.numHours} hours` : ' session-based'} workouts.
@@ -2192,7 +2192,7 @@ function ProgressPage({ liftHistory, weights }) {
           empty="No body weight entries returned yet."
           rows={weights.slice(0, 10).map((entry) => ({
             title: entry.date || entry.createdAt || 'Weight entry',
-            meta: entry.email || 'PowAI account',
+            meta: entry.email || 'Nuvella account',
             value: latestValue([entry], ['weight', 'value', 'bodyWeight']) || '--',
           }))}
         />
@@ -2350,7 +2350,7 @@ function LoadingPanel() {
   return (
     <section className="loading-panel">
       <Loader2 className="spin" size={28} />
-      <h3>Loading PowAI workspace</h3>
+      <h3>Loading Nuvella workspace</h3>
       <p>Fetching your profile, workout plan, nutrition history, and progress data.</p>
     </section>
   )
